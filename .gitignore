@@ -1,0 +1,4 @@
+test/test_results
+__pycache__
+results
+*.egg-info
