@@ -188,10 +188,12 @@ class ROSBag_TrueRelPoses:
             q_BT = UnitQuaternion()
             if ID in dict_cfg["sensor_orientations"].keys():
                 # expecting: w,x,y,z
-                q_BT = UnitQuaternion(np.array(dict_cfg["sensor_orientations"][ID]), norm=True)
+                q_vec =  np.array(dict_cfg["sensor_orientations"][ID])
+                q_BT = Quaternion(q_vec).unit()
                 pass
             dict_T_BODY_SENSOR[dict_cfg["sensor_topics"][ID]] = SE3.Rt(q_BT.R, t_BT, check=True)
             dict_poses[dict_cfg["sensor_topics"][ID]] = dict()
+            #print("ROSBag_TrueRelPoses: body sensor pose T(" + str(ID) + ")= " + str(dict_T_BODY_SENSOR[dict_cfg["sensor_topics"][ID]] ))
 
         ## extract the poses of the desired topics from the BAG file
         round_decimals = 4
@@ -206,7 +208,7 @@ class ROSBag_TrueRelPoses:
                         q_GB = [msg.pose.orientation.w, msg.pose.orientation.x, msg.pose.orientation.y,
                                 msg.pose.orientation.z]
 
-                        q = UnitQuaternion(q_GB, norm=True)
+                        q = Quaternion(q_GB).unit()
                         T_GLOBAL_BODY = SE3.Rt(q.R, t, check=True)
                         pass
                     elif hasattr(msg, 'header') and hasattr(msg, 'transform'):
@@ -214,7 +216,7 @@ class ROSBag_TrueRelPoses:
                             [msg.transform.translation.x, msg.transform.translation.y, msg.transform.translation.z])
                         q_GB = [msg.transform.rotation.w, msg.transform.rotation.x, msg.transform.rotation.y,
                                 msg.transform.rotation.z]
-                        q = UnitQuaternion(q_GB, norm=True)
+                        q = Quaternion(q_GB).unit()
                         T_GLOBAL_BODY = SE3.Rt(q.R, t, check=True)
                     else:
                         print("\nROSBag_TrueRelPoses: unsupported message " + str(msg))
@@ -265,7 +267,7 @@ class ROSBag_TrueRelPoses:
                                     T_GLOBAL_SENSOR2 = interpolate_pose(dict_history[dict_cfg["sensor_topics"][ID2]], timestamp)
 
                                     if T_GLOBAL_SENSOR1 is not None and T_GLOBAL_SENSOR2 is not None:
-                                        T_SENSOR1_SENSOR2 = SE3(T_GLOBAL_SENSOR1 * T_GLOBAL_SENSOR2.inv())
+                                        T_SENSOR1_SENSOR2 = SE3(T_GLOBAL_SENSOR1.inv() * T_GLOBAL_SENSOR2)
                                         p = T_SENSOR1_SENSOR2.t
                                         q = UnitQuaternion(T_SENSOR1_SENSOR2.R)
                                         qv = q.vec
@@ -275,10 +277,10 @@ class ROSBag_TrueRelPoses:
                                         msg.poses[idx_pose].pose.position.x = p[0]
                                         msg.poses[idx_pose].pose.position.y = p[1]
                                         msg.poses[idx_pose].pose.position.z = p[2]
-                                        msg.poses[idx_pose].pose.orientation.x = qv[0]
-                                        msg.poses[idx_pose].pose.orientation.y = qv[1]
-                                        msg.poses[idx_pose].pose.orientation.z = qv[2]
-                                        msg.poses[idx_pose].pose.orientation.w = qv[3]
+                                        msg.poses[idx_pose].pose.orientation.w = qv[0]
+                                        msg.poses[idx_pose].pose.orientation.x = qv[1]
+                                        msg.poses[idx_pose].pose.orientation.y = qv[2]
+                                        msg.poses[idx_pose].pose.orientation.z = qv[3]
                                         if use_header_timestamp and hasattr(msg, "header"):
                                             outbag.write(topic, msg, msg.header.stamp)
                                         else:

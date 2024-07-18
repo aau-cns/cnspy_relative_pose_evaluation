@@ -49,7 +49,7 @@ class RelPose_ROSBag2CSV:
 
         cfg = os.path.abspath(cfg)
         if not os.path.isfile(cfg):
-            print("ROSBag_Poses2RelPose: could not find file: %s" % cfg)
+            print("RelPose_ROSBag2CSV: could not find file: %s" % cfg)
             return False
 
         if verbose:
@@ -68,9 +68,7 @@ class RelPose_ROSBag2CSV:
 
         if verbose:
             print("configuration contains:")
-            print("sensor_positions:" + str(dict_cfg["sensor_positions"]))
-            print("sensor_orientations:" + str(dict_cfg["sensor_orientations"]))
-            print("sensor_topics:" + str(dict_cfg["relpose_topics"]))
+            print("relpose_topics:" + str(dict_cfg["relpose_topics"]))
             
         topic_list = dict_cfg["relpose_topics"].values()
         if len(topic_list) < 1:
@@ -162,6 +160,7 @@ class RelPose_ROSBag2CSV:
             print("\nRelPose_ROSBag2CSV: num messages " + str(num_messages))
 
         round_decimals = 4
+        cnt = 0
         ## extract the desired topics from the BAG file
         for topic, msg, t in tqdm(bag.read_messages(), total=num_messages, unit="msgs"):
             if topic in dict_cfg["relpose_topics"].values():
@@ -188,6 +187,8 @@ class RelPose_ROSBag2CSV:
                                    str(round(pose_id.pose.orientation.y, round_decimals)),
                                    str(round(pose_id.pose.orientation.z, round_decimals))]
                         file_writer.writerow(content)
+                        idx_pose += 1
+                        cnt += 1
 
         ## CLEANUP:
         # close all csv files
@@ -205,12 +206,156 @@ class RelPose_ROSBag2CSV:
                 return False
 
         if verbose:
-            print("\nRelPose_ROSBag2CSV: extracting done! ")
+            print("\nRelPose_ROSBag2CSV.extract(): extracted [%d] msgs." % cnt)
 
         bag.close()
         return True
 
+    #
+    # extract_to_one
+    #
+    @staticmethod
+    def extract_to_one(bagfile_name, cfg, fn, result_dir="", ext="csv", verbose=False ):
+        if not os.path.isfile(bagfile_name):
+            print("RelPose_ROSBag2CSV: could not find file: %s" % bagfile_name)
+            return False
 
+        cfg = os.path.abspath(cfg)
+        if not os.path.isfile(cfg):
+            print("RelPose_ROSBag2CSV: could not find file: %s" % cfg)
+            return False
+
+        if verbose:
+            print("RelPose_ROSBag2CSV:")
+            print("* bagfile: " + str(bagfile_name))
+            print("* cfg: \t " + str(cfg))
+            print("* filename: " + str(fn))
+
+        dict_cfg = None
+        with open(cfg, "r") as yamlfile:
+            dict_cfg = yaml.load(yamlfile, Loader=yaml.FullLoader)
+            if "relpose_topics" not in dict_cfg:
+                print("[relpose_topics] does not exist in fn=" + cfg)
+                return False
+            print("Read successful")
+
+        if verbose:
+            print("configuration contains:")
+            print("relpose_topics:" + str(dict_cfg["relpose_topics"]))
+
+        topic_list = dict_cfg["relpose_topics"].values()
+        if len(topic_list) < 1:
+            print("RelPose_ROSBag2CSV: no topics specified!")
+            return False
+
+        ## Open BAG file:
+        try:
+            bag = rosbag.Bag(bagfile_name)
+        except:
+            if verbose:
+                print("RelPose_ROSBag2CSV: Unexpected error!")
+
+            return False
+
+        info_dict = yaml.load(bag._get_yaml_info(), Loader=yaml.FullLoader)
+
+        if info_dict is None or 'messages' not in info_dict:
+            if verbose:
+                print("RelPose_ROSBag2CSV: Unexpected error, bag file might be empty!")
+            bag.close()
+            return False
+
+        ## create result dir:
+        if result_dir == "":
+            folder = str(bagfile_name).replace(".bag", "")
+        else:
+            folder = result_dir
+
+        folder = os.path.abspath(folder)
+        try:  # else already exists
+            os.makedirs(folder)
+        except:
+            pass
+
+        if verbose:
+            print("* result_dir: \t " + str(folder))
+
+        if not fn:
+          filename = str(folder + '/') + 'all_ranges.csv'
+        else:
+          filename = fn
+
+        if verbose:
+            print("* topic_list: \t " + str(topic_list))
+            print("* filename_list: " + str(filename))
+
+        for topicName in topic_list:
+            if topicName[0] != '/':
+                print("RelPose_ROSBag2CSV: Not a proper topic name: %s (should start with /)" % topicName)
+                continue
+
+        [root, ext] = os.path.splitext(filename)
+        [head, tail] = os.path.split(root)
+        if ext:
+            filename = str(folder + '/') + tail + ext
+        else:
+            filename = str(folder + '/') + tail + '.csv'
+
+        csvfile = open(filename, 'w+')
+        file_writer = csv.writer(csvfile, delimiter=',', lineterminator='\n')
+        file_writer.writerow(["t", "ID1", "ID2", "tx", "ty", "tz", "qw", "qx", "qy", "qz"])
+
+        ## check if desired topics are in the bag file:
+        num_messages = info_dict['messages']
+        bag_topics = info_dict['topics']
+        for topicName in topic_list:
+            found = False
+            for topic_info in bag_topics:
+                if topic_info['topic'] == topicName:
+                    found = True
+
+            if not found:
+                print("# WARNING: desired topic [" + str(topicName) + "] is not in bag file!")
+
+        if verbose:
+            print("\nRelPose_ROSBag2CSV: num messages " + str(num_messages))
+
+        round_decimals = 4
+        cnt = 0
+        ## extract the desired topics from the BAG file
+        for topic, msg, t in tqdm(bag.read_messages(), total=num_messages, unit="msgs"):
+            if topic in topic_list:
+                if hasattr(msg, 'header') and hasattr(msg, 'poses'):  # STAMPED
+                    # HINT: conversions:
+
+                    ID1 = get_key_from_value(dict_cfg["relpose_topics"], topic)
+                    timestamp = t.to_sec()
+                    idx_pose = 0
+                    for pose_id in msg.poses:
+                        ID2 = pose_id.id
+                        # HINT: conversions:
+
+                        content = ["%f" % timestamp, str(ID1), str(ID2),
+                                   str(round(pose_id.pose.position.x, round_decimals)),
+                                   str(round(pose_id.pose.position.y, round_decimals)),
+                                   str(round(pose_id.pose.position.z, round_decimals)),
+                                   str(round(pose_id.pose.orientation.w, round_decimals)),
+                                   str(round(pose_id.pose.orientation.x, round_decimals)),
+                                   str(round(pose_id.pose.orientation.y, round_decimals)),
+                                   str(round(pose_id.pose.orientation.z, round_decimals))]
+                        file_writer.writerow(content)
+                        idx_pose += 1
+                        cnt += 1
+
+        ## CLEANUP:
+        csvfile.close()
+
+
+        if verbose:
+            print("\nRelPose_ROSBag2CSV.extract_to_one(): extracted [%d] msgs." % cnt)
+
+        bag.close()
+        return True
 
 def main():
     # test3: python3 TWR_ROSbag2CS.py --bagfile ../test/example.bag --topics /a01/ranging /a02/ranging--verbose --filenames ranges.csv

@@ -21,6 +21,7 @@ import os
 from cnspy_relative_pose_evaluation.ROSBag_Poses2RelPoses import *
 from cnspy_relative_pose_evaluation.ROSBag_TrueRelPoses import *
 from cnspy_relative_pose_evaluation.RelPose_ROSBag2CSV import *
+from cnspy_relative_pose_evaluation.RelPoseMeasEvaluationTool  import *
 
 SAMPLE_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sample_data')
 RES_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_results')
@@ -59,9 +60,30 @@ class EvaluationTrail:
                                      cfg=cfg_file,
                                      verbose=True)
 
+        fn_out = str(RES_DATA_DIR + '/all_meas_relposes.csv')
+        RelPose_ROSBag2CSV.extract_to_one(bagfile_name=bagfile_in,
+                                   cfg=cfg_file,
+                                   fn=fn_out,
+                                   result_dir=RES_DATA_DIR,
+                                   verbose=True)
+
+    @staticmethod
+    def test_RelPoseEval():
+        sequence = 'static_test'
+        bagfile_in = str(SAMPLE_DATA_DIR + '/' + sequence + '.bag')
+        cfg_file = str(SAMPLE_DATA_DIR + '/config.yaml')
+        RelPoseMeasEvaluationTool.evaluate(bagfile_in=bagfile_in,
+                                           cfg=cfg_file,
+                                           result_dir=RES_DATA_DIR,
+                                           save_plot=True,
+                                           show_plot=False,
+                                           verbose=True)
+
+
 if __name__ == "__main__":
      #EvaluationTrail.test_ROSBag_Poses2RelPose()
      #EvaluationTrail.test_ROSBag_TrueRelPoses()
-     EvaluationTrail.test_RelPose_ROSbag2CSV()
+     #EvaluationTrail.test_RelPose_ROSbag2CSV()
 
+     EvaluationTrail.test_RelPoseEval()
 

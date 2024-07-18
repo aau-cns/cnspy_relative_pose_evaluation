@@ -33,6 +33,12 @@ from spatialmath import UnitQuaternion, SO3, SE3, Quaternion, base
 from std_msgs.msg import Header, Time
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformStamped
 
+from cnspy_relative_pose_evaluation.ROSBag_Poses2RelPoses import *
+from cnspy_relative_pose_evaluation.ROSBag_TrueRelPoses import *
+from cnspy_relative_pose_evaluation.RelPose_ROSBag2CSV import *
+from cnspy_relative_pose_evaluation.AssociateRelPoses import AssociateRelPoses, AssociateRelPoseCfg
+from cnspy_relative_pose_evaluation.RelPoseMeasEvaluation import RelPoseMeasEvaluation
+
 class RelPoseMeasEvaluationTool:
     @staticmethod
     def evaluate(bagfile_in, cfg, result_dir=None, verbose=True, show_plot=True, save_plot=True):
@@ -62,8 +68,8 @@ class RelPoseMeasEvaluationTool:
             if "sensor_topics" not in dict_cfg:
                 print("[sensor_topics] does not exist in fn=" + cfg)
                 return False
-            if "pose_topic" not in dict_cfg:
-                print("[pose_topic] does not exist in fn=" + cfg)
+            if "relpose_topics" not in dict_cfg:
+                print("[relpose_topics] does not exist in fn=" + cfg)
                 return False
             print("Successfully read YAML config file.")
 
@@ -71,7 +77,7 @@ class RelPoseMeasEvaluationTool:
         topic_list = []
         for key, val in dict_cfg["sensor_topics"].items():
             topic_list.append(val)
-        for key, val in dict_cfg["pose_topic"].items():
+        for key, val in dict_cfg["relpose_topics"].items():
             topic_list.append(val)
             Sensor_ID_arr.append(int(key))
 
@@ -86,8 +92,8 @@ class RelPoseMeasEvaluationTool:
 
         # 1) extract all measurements to CSV
         if not os.path.isfile(fn_meas_ranges):
-            res = TWR_ROSbag2CSV.extract_to_one(bagfile_name=bagfile_in,
-                                                topic_list=topic_list,
+            res = RelPose_ROSBag2CSV.extract_to_one(bagfile_name=bagfile_in,
+                                                cfg=cfg,
                                                 fn=fn_meas_ranges,
                                                 result_dir=result_dir,
                                                 verbose=verbose)
@@ -98,25 +104,26 @@ class RelPoseMeasEvaluationTool:
 
         # 2) create a clean bag file
         if not os.path.isfile(bagfile_out):
-            res = ROSbag_TrueRanges.extract(bagfile_in_name=bagfile_in,
+            res = ROSBag_TrueRelPoses.extract(bagfile_in_name=bagfile_in,
                                             bagfile_out_name=bagfile_out,
-                                            topic_pose=dict_cfg["pose_topic"],
                                             cfg=cfg,
                                             verbose=verbose,
-                                            stddev_range=0.001)
+                                            use_header_timestamp=False,
+                                            stddev_pos=0.0,
+                                            perc_outliers=0.0)
 
         if not os.path.isfile(fn_gt_ranges):
             # 3) extract all measurements from the clean bagfile
-            res = TWR_ROSbag2CSV.extract_to_one(bagfile_name=bagfile_out,
-                                                topic_list=topic_list,
+            res = RelPose_ROSBag2CSV.extract_to_one(bagfile_name=bagfile_out,
+                                                cfg=cfg,
                                                 fn=fn_gt_ranges,
                                                 result_dir=result_dir,
                                                 verbose=verbose)
 
 
         # 4) evaluate the ranges
-        cfg = AssociateRangesCfg(UWB_ID1=None,
-                                 UWB_ID2=None,
+        cfg = AssociateRelPoseCfg(ID1=None,
+                                 ID2=None,
                                  relative_timestamps=False,
                                  max_difference=0.03,
                                  subsample=0,
@@ -125,14 +132,14 @@ class RelPoseMeasEvaluationTool:
                                  max_range=30,
                                  range_error_val=0,
                                  label_timestamp='t',
-                                 label_ID1='UWB_ID1',
-                                 label_ID2='UWB_ID2',
-                                 label_range='range_raw')
+                                 label_ID1='ID1',
+                                 label_ID2='ID2',
+                                 label_range='range')
 
-        eval = RangeEvaluation(fn_gt=fn_gt_ranges,
+        eval = RelPoseMeasEvaluation(fn_gt=fn_gt_ranges,
                                fn_est=fn_meas_ranges,
-                               UWB_ID1_arr=UWB_ID1_arr,
-                               UWB_ID2_arr=UWB_ID1_arr,
+                               ID1_arr=Sensor_ID_arr,
+                               ID2_arr=Sensor_ID_arr,
                                cfg=cfg,
                                result_dir=str(result_dir + '/eval/'),
                                prefix='',
@@ -144,6 +151,7 @@ class RelPoseMeasEvaluationTool:
                                plot_ranges_sorted=True,
                                plot_error=True,
                                plot_histogram=True,
+                               filter_histogram=False,
                                verbose=verbose
                                )
         pass  # DONE
@@ -156,7 +164,7 @@ def main():
                         default='')
     parser.add_argument('--bagfile', help='input bag file', default="not specified")
     parser.add_argument('--cfg',
-                        help='YAML configuration file describing the setup: {rel_tag_positions, abs_anchor_positions}',
+                        help='YAML configuration file describing the setup: {sensor_topics, sensor_positions, sensor_orientations, relpose_topics}',
                         default="config.yaml", required=True)
     parser.add_argument('--save_plot', action='store_true', default=True)
     parser.add_argument('--show_plot', action='store_true', default=False)

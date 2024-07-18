@@ -293,7 +293,7 @@ class ROSBag_Poses2RelPose:
                                 file_writer.writerow(["t", "ID1", "ID2", "tx", "ty", "tz", "qw", "qx", "qy", "qz"])
                                 dict_header_written[topic] = True
 
-                            T_SENSOR1_SENSOR2 = SE3(T_GLOBAL_SENSOR1 * T_GLOBAL_SENSOR2.inv())
+                            T_SENSOR1_SENSOR2 = SE3(T_GLOBAL_SENSOR1.inv() * T_GLOBAL_SENSOR2)
                             content = relpose_to_csv_line(timestamp, ID1, ID2, T_SENSOR1_SENSOR2, round_decimals)
                             file_writer.writerow(content)
         except  Exception as e:
