@@ -36,6 +36,23 @@ from std_msgs.msg import Header, Time
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformStamped
 
 
+def relpose_to_csv_line(timestamp, ID1, ID2, Pose, round_decimals=4):
+    t = Pose.t
+    q = UnitQuaternion(Pose.R)
+    qv = q.vec
+
+    content = ["%f" % timestamp, str(ID1), str(ID2),
+               str(round(t[0], round_decimals)),
+               str(round(t[1], round_decimals)),
+               str(round(t[2], round_decimals)),
+               str(round(qv[3], round_decimals)),
+               str(round(qv[0], round_decimals)),
+               str(round(qv[1], round_decimals)),
+               str(round(qv[2], round_decimals))]
+    return content
+
+
+
 class ROSBag_Poses2RelPose:
     def __init__(self):
         pass
@@ -272,23 +289,12 @@ class ROSBag_Poses2RelPose:
                             else:
                                 T_GLOBAL_SENSOR2 = dict_history[topic2].get_at_t(timestamp)*dict_T_BODY_SENSOR[topic2]
 
-                            T_SENSOR1_SENSOR2 = SE3(T_GLOBAL_SENSOR1 * T_GLOBAL_SENSOR2.inv())
-                            t = T_SENSOR1_SENSOR2.t
-                            q = UnitQuaternion(T_SENSOR1_SENSOR2.R)
-                            qv = q.vec
                             if not dict_header_written[topic]:
                                 file_writer.writerow(["t", "ID1", "ID2", "tx", "ty", "tz", "qw", "qx", "qy", "qz"])
                                 dict_header_written[topic] = True
 
-                            content = ["%f" % timestamp, str(ID1), str(ID2),
-                                       str(round(t[0], round_decimals)),
-                                       str(round(t[1], round_decimals)),
-                                       str(round(t[2], round_decimals)),
-                                       str(round(qv[3], round_decimals)),
-                                       str(round(qv[0], round_decimals)),
-                                       str(round(qv[1], round_decimals)),
-                                       str(round(qv[2], round_decimals))]
-
+                            T_SENSOR1_SENSOR2 = SE3(T_GLOBAL_SENSOR1 * T_GLOBAL_SENSOR2.inv())
+                            content = relpose_to_csv_line(timestamp, ID1, ID2, T_SENSOR1_SENSOR2, round_decimals)
                             file_writer.writerow(content)
         except  Exception as e:
             print("ROSBag_Poses2RelPose: Unexpected error while creating the CSV files! msg=%s" % repr(e))
