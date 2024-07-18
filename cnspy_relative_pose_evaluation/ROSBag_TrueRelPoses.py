@@ -36,7 +36,7 @@ from std_msgs.msg import Header, Time
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformStamped
 
 def interpolate_pose(pose_hist, timestamp):
-    T_GLOBAL_BODY_Ti = pose_hist.get_at_t(timestamp)
+    [ti, T_GLOBAL_BODY_Ti] = pose_hist.get_at_t(timestamp)
     if T_GLOBAL_BODY_Ti is None:
         [t1, T_GLOBAL_BODY_T1] = pose_hist.get_before_t(timestamp)
         [t2, T_GLOBAL_BODY_T2] = pose_hist.get_after_t(timestamp)
@@ -84,15 +84,15 @@ class ROSBag_TrueRelPoses:
                 ):
 
         if not os.path.isfile(bagfile_in_name):
-            print("ROSBag_Poses2RelPose: could not find file: %s" % bagfile_in_name)
+            print("ROSBag_TrueRelPoses: could not find file: %s" % bagfile_in_name)
             return False
         cfg = os.path.abspath(cfg)
         if not os.path.isfile(cfg):
-            print("ROSBag_Poses2RelPose: could not find file: %s" % cfg)
+            print("ROSBag_TrueRelPoses: could not find file: %s" % cfg)
             return False
 
         if verbose:
-            print("ROSBag_Poses2RelPose:")
+            print("ROSBag_TrueRelPoses:")
             print("* bagfile in name: " + str(bagfile_in_name))
             print("* bagfile out name: " + str(bagfile_out_name))
             print("* cfg YAML file: \t " + str(cfg))
@@ -106,7 +106,7 @@ class ROSBag_TrueRelPoses:
             bag = rosbag.Bag(bagfile_in_name)
         except:
             if verbose:
-                print("ROSBag_Poses2RelPose: Unexpected error!")
+                print("ROSBag_TrueRelPoses: Unexpected error!")
 
             return False
 
@@ -147,7 +147,7 @@ class ROSBag_TrueRelPoses:
 
         if info_dict is None or 'messages' not in info_dict:
             if verbose:
-                print("ROSBag_Poses2RelPose: Unexpected error, bag file might be empty!")
+                print("ROSBag_TrueRelPoses: Unexpected error, bag file might be empty!")
             bag.close()
             return False
 
@@ -178,7 +178,7 @@ class ROSBag_TrueRelPoses:
                 print("# WARNING: desired topic [" + str(topicName) + "] is not in bag file!")
 
         if verbose:
-            print("\nROSBag_Poses2RelPose: num messages " + str(num_messages))
+            print("\nROSBag_TrueRelPoses: num messages " + str(num_messages))
 
         ## store the BODY SENSOR pose in a dictionary
         dict_T_BODY_SENSOR = dict() # map<topic, SE3>
@@ -196,7 +196,7 @@ class ROSBag_TrueRelPoses:
         ## extract the poses of the desired topics from the BAG file
         round_decimals = 4
         try:  # else already exists
-            print("ROSBag_Poses2RelPose: extracting poses...")
+            print("ROSBag_TrueRelPoses: extracting poses...")
             cnt_poses = 0
             for topic, msg, t in tqdm(bag.read_messages(), total=num_messages, unit="msgs"):
                 if topic in dict_cfg["sensor_topics"].values():
@@ -217,7 +217,7 @@ class ROSBag_TrueRelPoses:
                         q = UnitQuaternion(q_GB, norm=True)
                         T_GLOBAL_BODY = SE3.Rt(q.R, t, check=True)
                     else:
-                        print("\nROSbag_TrueRanges: unsupported message " + str(msg))
+                        print("\nROSBag_TrueRelPoses: unsupported message " + str(msg))
                         continue
 
                     if T_GLOBAL_BODY is not None:
@@ -229,15 +229,15 @@ class ROSBag_TrueRelPoses:
                 pass
 
             if cnt_poses == 0:
-                print("\nROSbag_TrueRanges: no poses obtained!")
+                print("\nROSBag_TrueRelPoses: no poses obtained!")
                 return False
             else:
-                print("\nROSbag_TrueRanges: poses extractd: " + str(cnt_poses))
+                print("\nROSBag_TrueRelPoses: poses extractd: " + str(cnt_poses))
 
         except AssertionError as error:
             print(error)
             print(
-                "ROSBag_Poses2RelPose: Unexpected error while reading the bag file!\n * try: $ rosbag fix <bagfile> <fixed>")
+                "ROSBag_TrueRelPoses: Unexpected error while reading the bag file!\n * try: $ rosbag fix <bagfile> <fixed>")
             return False
 
         ## convert poses to History
@@ -246,9 +246,9 @@ class ROSBag_TrueRelPoses:
             dict_history[topic] = HistoryBuffer(dict_t=poses)
 
         ## TODO:
-        cnt = 0;
+        cnt = 0
         try:  # else already exists
-            print("ROSbag_TrueRanges: computing new relative pose measurements...")
+            print("ROSBag_TrueRelPoses: computing new relative pose measurements...")
             with rosbag.Bag(bagfile_out_name, 'w') as outbag:
                 for topic, msg, t in tqdm(bag.read_messages(), total=num_messages, unit="msgs"):
                     if topic in dict_cfg["relpose_topics"].values() and hasattr(msg, 'poses') and hasattr(msg, 'header'):
@@ -302,35 +302,26 @@ class ROSBag_TrueRelPoses:
 
 
         except  Exception as e:
-            print("ROSBag_Poses2RelPose: Unexpected error while creating the CSV files! msg=%s" % repr(e))
+            print("ROSBag_TrueRelPoses: Unexpected error while creating the bag file! msg=%s" % repr(e))
             print(str(sys.exc_info()))
             return False
         ## CLEANUP:
-        # close all csv files
-        for key, hdls in dict_csvfile_hdls.items():
-            hdls.close()
-
-        # check if a topic was found by checking if the topic header was written
-        for topic, header_writen in dict_header_written.items():
-            if not header_writen:
-                print("\nROSBag_Poses2RelPose: \n\tWARNING topic [" + str(topic) + "] was not in bag-file")
-                print("\tbag file [" + str(bagfile_in_name) + "] contains: ")
-                # print(info_dict['topics'])
-                for t in info_dict['topics']:
-                    print(t['topic'])
-                return False
+        except AssertionError as error:
+            print(error)
+            print("ROSBag_TrueRelPoses: Unexpected error while creating bag file")
+            return False
 
         if verbose:
-            print("\nROSBag_Poses2RelPose: extracting done! ")
-
+            print("\nROSBag_TrueRelPoses: " + str(cnt) + " range measurements modified!")
         bag.close()
         return True
+
 
 
 def main():
     # example: ROSBag_Pose2Ranges.py --bagfile ../test/sample_data//uwb_calib_a01_2023-08-31-21-05-46.bag --topic /d01/mavros/vision_pose/pose --cfg ../test/sample_data/config.yaml --verbose
     parser = argparse.ArgumentParser(
-        description='ROSBag_Poses2RelPose: extract given pose topics and compute for each relative poses measurement a true pose, which is stored into a CSV file')
+        description='ROSBag_TrueRelPoses: extract given pose topics and compute for each relative poses measurement a true pose, which is stored into a CSV file')
     parser.add_argument('--bagfile_in', help='input bag file', required=True)
     parser.add_argument('--bagfile_out', help='output bag file', default="")
     parser.add_argument('--cfg',
