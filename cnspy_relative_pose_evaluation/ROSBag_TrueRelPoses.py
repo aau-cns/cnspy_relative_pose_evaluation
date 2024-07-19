@@ -35,7 +35,8 @@ from cnspy_ranging_evaluation.ROSBag_TrueRanges import HistoryBuffer, get_key_fr
 from std_msgs.msg import Header, Time
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformStamped
 
-def interpolate_pose(pose_hist, timestamp):
+def interpolate_pose(pose_hist, timestamp, round_decimals=4):
+    timestamp = round(timestamp, round_decimals)
     [ti, T_GLOBAL_BODY_Ti] = pose_hist.get_at_t(timestamp)
     if T_GLOBAL_BODY_Ti is None:
         [t1, T_GLOBAL_BODY_T1] = pose_hist.get_before_t(timestamp)
@@ -49,16 +50,23 @@ def interpolate_pose(pose_hist, timestamp):
         dt_i = timestamp - t1
         i = abs(dt_i / dt)
 
+        if dt < 10**-3:
+            return T_GLOBAL_BODY_T1
+        if i < 10**-2:
+            return T_GLOBAL_BODY_T1
+        elif i > 1.0-10**-2:
+            return T_GLOBAL_BODY_T2
+
         # interpolate between poses:
         q0 = UnitQuaternion(T_GLOBAL_BODY_T1.R)
         q1 = UnitQuaternion(T_GLOBAL_BODY_T2.R)
         p0 = T_GLOBAL_BODY_T1.t
         p1 = T_GLOBAL_BODY_T2.t
 
-        qr = UnitQuaternion(qslerp(q0.vec, q1.vec, i, shortest=True), norm=True)
-        pr = p0 * (1 - i) + i * p1
+        qi = UnitQuaternion(qslerp(q0.vec, q1.vec, i, shortest=True), norm=True)
+        pi = p0 * (1 - i) + i * p1
 
-        T_GLOBAL_BODY_Ti = SE3.Rt(qr.R, pr, check=True)
+        T_GLOBAL_BODY_Ti = SE3.Rt(qi.R, pi, check=True)
         if not SE3.isvalid(T_GLOBAL_BODY_Ti, check=True):
             if T_GLOBAL_BODY_Ti.A is None:
                 return None
@@ -204,20 +212,20 @@ class ROSBag_TrueRelPoses:
                 if topic in dict_cfg["sensor_topics"].values():
                     T_GLOBAL_BODY = None
                     if hasattr(msg, 'header') and hasattr(msg, 'pose'):  # POSE_STAMPED
-                        t = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
+                        p = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
                         q_GB = [msg.pose.orientation.w, msg.pose.orientation.x, msg.pose.orientation.y,
                                 msg.pose.orientation.z]
 
                         q = Quaternion(q_GB).unit()
-                        T_GLOBAL_BODY = SE3.Rt(q.R, t, check=True)
+                        T_GLOBAL_BODY = SE3.Rt(q.R, p, check=True)
                         pass
                     elif hasattr(msg, 'header') and hasattr(msg, 'transform'):
-                        t = np.array(
+                        p = np.array(
                             [msg.transform.translation.x, msg.transform.translation.y, msg.transform.translation.z])
                         q_GB = [msg.transform.rotation.w, msg.transform.rotation.x, msg.transform.rotation.y,
                                 msg.transform.rotation.z]
                         q = Quaternion(q_GB).unit()
-                        T_GLOBAL_BODY = SE3.Rt(q.R, t, check=True)
+                        T_GLOBAL_BODY = SE3.Rt(q.R, p, check=True)
                     else:
                         print("\nROSBag_TrueRelPoses: unsupported message " + str(msg))
                         continue
@@ -256,15 +264,15 @@ class ROSBag_TrueRelPoses:
                     if topic in dict_cfg["relpose_topics"].values() and hasattr(msg, 'poses') and hasattr(msg, 'header'):
                         ID1 = get_key_from_value(dict_cfg["relpose_topics"], topic)
                         idx_pose = 0
+                        timestamp = round(msg.header.stamp.to_sec(), round_decimals)
                         for relpose in msg.poses: # id, pose, covariance
                             ID2 = relpose.id
-                            timestamp = round(msg.header.stamp.to_sec(), round_decimals)
                             for id2, topic2 in dict_cfg["sensor_topics"].items():
                                 if id2 == relpose.id:
                                     #ID2 = get_key_from_value(dict_cfg["sensor_topics"], topic2)
 
-                                    T_GLOBAL_SENSOR1 = interpolate_pose(dict_history[dict_cfg["sensor_topics"][ID1]], timestamp)
-                                    T_GLOBAL_SENSOR2 = interpolate_pose(dict_history[dict_cfg["sensor_topics"][ID2]], timestamp)
+                                    T_GLOBAL_SENSOR1 = interpolate_pose(dict_history[dict_cfg["sensor_topics"][ID1]], timestamp, round_decimals)
+                                    T_GLOBAL_SENSOR2 = interpolate_pose(dict_history[dict_cfg["sensor_topics"][ID2]], timestamp, round_decimals)
 
                                     if T_GLOBAL_SENSOR1 is not None and T_GLOBAL_SENSOR2 is not None:
                                         T_SENSOR1_SENSOR2 = SE3(T_GLOBAL_SENSOR1.inv() * T_GLOBAL_SENSOR2)
