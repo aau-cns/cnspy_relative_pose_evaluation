@@ -38,17 +38,20 @@ from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformS
 
 def relpose_to_csv_line(timestamp, ID1, ID2, Pose, round_decimals=4):
     t = Pose.t
+    range = LA.norm(t)
     q = UnitQuaternion(Pose.R)
     qv = q.vec
-
-    content = ["%f" % timestamp, str(ID1), str(ID2),
+    [ang, vec] = q.angvec()
+    content = ["%f" % round(timestamp, round_decimals), str(ID1), str(ID2),
                str(round(t[0], round_decimals)),
                str(round(t[1], round_decimals)),
                str(round(t[2], round_decimals)),
                str(round(qv[3], round_decimals)),
                str(round(qv[0], round_decimals)),
                str(round(qv[1], round_decimals)),
-               str(round(qv[2], round_decimals))]
+               str(round(qv[2], round_decimals)),
+               str(round(range, round_decimals)),
+               str(round(ang, round_decimals))]
     return content
 
 
@@ -198,7 +201,7 @@ class ROSBag_Poses2RelPose:
                         q_GB = [msg.pose.orientation.w, msg.pose.orientation.x, msg.pose.orientation.y,
                                 msg.pose.orientation.z]
 
-                        q = UnitQuaternion(q_GB, norm=True)
+                        q = UnitQuaternion(q_GB, norm=True).unit()
                         T_GLOBAL_BODY = SE3.Rt(q.R, t, check=True)
                         pass
                     elif hasattr(msg, 'header') and hasattr(msg, 'transform'):
@@ -206,7 +209,7 @@ class ROSBag_Poses2RelPose:
                             [msg.transform.translation.x, msg.transform.translation.y, msg.transform.translation.z])
                         q_GB = [msg.transform.rotation.w, msg.transform.rotation.x, msg.transform.rotation.y,
                                 msg.transform.rotation.z]
-                        q = UnitQuaternion(q_GB, norm=True)
+                        q = UnitQuaternion(q_GB, norm=True).unit()
                         T_GLOBAL_BODY = SE3.Rt(q.R, t, check=True)
                     else:
                         print("\nROSbag_TrueRanges: unsupported message " + str(msg))
@@ -290,7 +293,7 @@ class ROSBag_Poses2RelPose:
                                 T_GLOBAL_SENSOR2 = dict_history[topic2].get_at_t(timestamp)*dict_T_BODY_SENSOR[topic2]
 
                             if not dict_header_written[topic]:
-                                file_writer.writerow(["t", "ID1", "ID2", "tx", "ty", "tz", "qw", "qx", "qy", "qz"])
+                                file_writer.writerow(["t", "ID1", "ID2", "tx", "ty", "tz", "qw", "qx", "qy", "qz", "range", "angle"])
                                 dict_header_written[topic] = True
 
                             T_SENSOR1_SENSOR2 = SE3(T_GLOBAL_SENSOR1.inv() * T_GLOBAL_SENSOR2)
