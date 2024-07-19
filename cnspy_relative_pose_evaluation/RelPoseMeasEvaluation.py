@@ -52,6 +52,7 @@ class RelPoseMeasEvaluation:
                  plot_angles=True,
                  plot_ranges_sorted=True,
                  plot_range_error =True,
+                 plot_angle_error=True,
                  plot_range_histogram=True,
                  verbose=False,
                  filter_histogram=True
@@ -111,8 +112,11 @@ class RelPoseMeasEvaluation:
                 fig_rs = plt.figure(figsize=(20, 15), dpi=int(200))
                 fig_rs.suptitle('Range sorted of ID=' + str(ID1), fontsize=16)
             if plot_range_error:
-                fig_e = plt.figure(figsize=(20, 15), dpi=int(200))
-                fig_e.suptitle('Error of ID=' + str(ID1), fontsize=16)
+                fig_re = plt.figure(figsize=(20, 15), dpi=int(200))
+                fig_re.suptitle('Error of ID=' + str(ID1), fontsize=16)
+            if plot_angle_error:
+                fig_ae = plt.figure(figsize=(20, 15), dpi=int(200))
+                fig_ae.suptitle('Error of ID=' + str(ID1), fontsize=16)
             if plot_range_histogram:
                 fig_h = plt.figure(figsize=(20, 15), dpi=int(200))
                 fig_h.suptitle('Histograms of ID=' + str(ID1), fontsize=16)
@@ -150,13 +154,16 @@ class RelPoseMeasEvaluation:
                 if plot_angles:
                     ax_a = fig_a.add_subplot(n_rows, n_cols, idx)
                     assoc.plot_angles(fig=fig_a, ax=ax_a, cfg_title=cfg_title)
+                if plot_angle_error:
+                    ax_ae = fig_ae.add_subplot(n_rows, n_cols, idx)
+                    assoc.plot_angle_error(fig=fig_ae, ax=ax_ae, cfg_title=cfg_title)
 
                 if plot_ranges_sorted:
                     ax_rs = fig_rs.add_subplot(n_rows, n_cols, idx)
                     assoc.plot_ranges(fig=fig_rs, ax=ax_rs, sorted=True, cfg_title=cfg_title)
                 if plot_range_error:
-                    ax_e = fig_e.add_subplot(n_rows, n_cols, idx)
-                    [fig_, ax_, stat, r_vec_err_] = assoc.plot_range_error(fig=fig_e, ax=ax_e,
+                    ax_e = fig_re.add_subplot(n_rows, n_cols, idx)
+                    [fig_, ax_, stat, r_vec_err_] = assoc.plot_range_error(fig=fig_re, ax=ax_e,
                                                                         sorted=False,
                                                                         remove_outlier=True,
                                                                         cfg_title=cfg_title)
@@ -204,12 +211,17 @@ class RelPoseMeasEvaluation:
                                                      show=show_plot, close_figure=not show_plot)
 
             if plot_range_error:
-                fig_e.tight_layout()
+                fig_re.tight_layout()
                 if save_plot:
-                    AssociateRelPoses.show_save_figure(fig=fig_e, result_dir=result_dir,
-                                                     save_fn=str("Errors_ID" + str(ID1)),
+                    AssociateRelPoses.show_save_figure(fig=fig_re, result_dir=result_dir,
+                                                     save_fn=str("Range_Errors_ID" + str(ID1)),
                                                      show=show_plot, close_figure=not show_plot)
-
+            if plot_angle_error:
+                fig_ae.tight_layout()
+                if save_plot:
+                    AssociateRelPoses.show_save_figure(fig=fig_ae, result_dir=result_dir,
+                                                     save_fn=str("Angle_Errors_ID" + str(ID1)),
+                                                     show=show_plot, close_figure=not show_plot)
             if plot_range_histogram:
                 fig_h.tight_layout()
                 if save_plot:

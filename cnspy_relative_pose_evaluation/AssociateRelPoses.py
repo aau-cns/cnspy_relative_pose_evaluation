@@ -108,9 +108,9 @@ class AssociateRelPoses(AssociateRanges):
             self.csv_df_gt[cfg.label_range] = range_gt
         # compute angle
         if 'angle' not in self.csv_df_est:
-            self.csv_df_est[cfg.label_angle] = AssociateRelPoses.quat2ang_arr(self.csv_df_est[['tx', 'ty', 'tz']].to_numpy())
+            self.csv_df_est[cfg.label_angle] = AssociateRelPoses.quat2ang_arr(self.csv_df_est[['qw','qx', 'qy', 'qz']].to_numpy())
         if 'angle' not in self.csv_df_gt:
-            self.csv_df_gt[cfg.label_angle] = AssociateRelPoses.quat2ang_arr(self.csv_df_gt[['tx', 'ty', 'tz']].to_numpy())
+            self.csv_df_gt[cfg.label_angle] = AssociateRelPoses.quat2ang_arr(self.csv_df_gt[['qw','qx', 'qy', 'qz']].to_numpy())
 
         if cfg.remove_outliers:
             self.csv_df_est[cfg.label_range] = self.csv_df_est[cfg.label_range].where(
@@ -187,10 +187,29 @@ class AssociateRelPoses(AssociateRanges):
             [angle, vec] = q.angvec()
             return angle
 
-        [rows, cols] = q_arr.shape()
+        [rows, cols] = q_arr.shape
         assert(cols == 4);
         return np.apply_along_axis(myfunction, axis=1, arr=q_arr)
 
+    @staticmethod
+    def quats2ang_arr(q_arr1, q_arr2):
+        def myfunction(x,y):
+            q1 = UnitQuaternion(x).unit()
+            q2 = UnitQuaternion(y).unit()
+            # local error of x
+            q = q1.inv() * q2
+            [angle, vec] = q.angvec()
+            return angle
+
+        [rows1, cols1] = q_arr1.shape
+        [rows2, cols2] = q_arr2.shape
+        assert(cols1 == 4 and cols2 ==4)
+        assert(rows1 == rows2)
+
+        ang_arr = np.zeros([rows1, 1])
+        for idx in range(0, rows1):
+            ang_arr[idx] = myfunction(q_arr1[idx, :], q_arr2[idx, :])
+        return ang_arr
 
     def plot_angles(self, cfg_dpi=200, cfg_title="angles", sorted=False, fig=None, ax=None,
                     colors=['r', 'g'], labels=['gt', 'est'],
@@ -242,3 +261,100 @@ class AssociateRelPoses(AssociateRanges):
 
         ax.legend()
         return fig, ax
+
+
+    def compute_angle_error(self, sort=False, remove_outlier=True, max_error=None):
+        if not self.data_loaded:
+            return
+        if version_info[0] < 3:
+            t_vec_gt = self.data_frame_gt_matched.as_matrix([self.cfg.label_timestamp])
+            t_vec_est = self.data_frame_est_matched.as_matrix([self.cfg.label_timestamp])
+        else:
+            t_vec_gt = self.data_frame_gt_matched[[self.cfg.label_timestamp]].to_numpy()
+            t_vec_est = self.data_frame_est_matched[[self.cfg.label_timestamp]].to_numpy()
+
+        if version_info[0] < 3:
+            r_vec_gt = self.data_frame_gt_matched.as_matrix([self.cfg.label_angle])
+            r_vec_est = self.data_frame_est_matched.as_matrix([self.cfg.label_angle])
+        else:
+            r_vec_gt = self.data_frame_gt_matched[['qw','qx', 'qy', 'qz']].to_numpy()
+            r_vec_est = self.data_frame_est_matched[['qw','qx', 'qy', 'qz']].to_numpy()
+
+        if not sort:
+            # if r_est = r_true + r_err, then  r_err is an offset or the constant bias (gamma).
+            r_vec_err = AssociateRelPoses.quats2ang_arr(r_vec_est, r_vec_gt)
+            t_vec = t_vec_gt
+            if remove_outlier:
+                if not self.cfg.remove_outliers:
+                    indices = np.nonzero((r_vec_est == self.cfg.range_error_val))
+                else:
+                    indices = np.nonzero((abs(r_vec_est) > self.cfg.max_range))
+
+                t_vec = np.delete(t_vec, indices, axis=0, )
+                r_vec_err = np.delete(r_vec_err, indices, axis=0)
+
+                if max_error:
+                    indices = np.nonzero((abs(r_vec_err) > max_error))
+                    t_vec = np.delete(t_vec, indices, axis=0, )
+                    r_vec_err = np.delete(r_vec_err, indices, axis=0)
+
+                return [t_vec, r_vec_err]
+        else:
+            # if r_est = r_true + r_err, then  r_err is an offset or the constant bias (gamma).
+            r_vec_err = AssociateRelPoses.quats2ang_arr(r_vec_est, r_vec_gt)
+            x_arr = r_vec_gt
+            if remove_outlier:
+                if not self.cfg.remove_outliers and not max_error:
+                    indices = np.nonzero((r_vec_est == self.cfg.range_error_val))
+                else:
+                    indices = np.nonzero((abs(r_vec_est) > self.cfg.max_range))
+
+                x_arr = np.delete(x_arr, indices, axis=0, )
+                r_vec_err = np.delete(r_vec_err, indices, axis=0)
+
+                if max_error:
+                    indices = np.nonzero((abs(r_vec_err) > max_error))
+                    x_arr = np.delete(x_arr, indices, axis=0, )
+                    r_vec_err = np.delete(r_vec_err, indices, axis=0)
+
+
+
+            gt_indices_sorted = np.argsort(x_arr, axis=0)
+            #x_arr = range(len(r_vec_gt))
+            t_vec = np.take_along_axis(x_arr, gt_indices_sorted, axis=0)
+            r_vec = np.take_along_axis(r_vec_err, gt_indices_sorted, axis=0)
+            return [t_vec, r_vec]
+
+    def plot_angle_error(self, cfg_dpi=200, cfg_title="angle", sorted=False, remove_outlier=True, fig=None, ax=None,
+                    colors=['r'], labels=['error'],
+                    ls_vec=[PlotLineStyle(linestyle='-'), PlotLineStyle(linestyle='-.')],
+                    save_fn="", result_dir="."):
+        if not self.data_loaded:
+            return
+        if fig is None:
+            fig = plt.figure(figsize=(20, 15), dpi=int(cfg_dpi))
+        if ax is None:
+            ax = fig.add_subplot(111)
+        if cfg_title:
+            ax.set_title(cfg_title)
+
+        [t_vec, r_vec_err] = self.compute_angle_error(sort=sorted, remove_outlier=remove_outlier)
+        if not sorted:
+            AssociateRanges.ax_plot_n_dim(ax, t_vec, r_vec_err, colors=[colors[0]], labels=[labels[0]], ls=ls_vec[0])
+            ax.grid()
+            ax.set_ylabel('angle error (gt-est)')
+            ax.set_xlabel('time [s]')
+            AssociateRanges.show_save_figure(fig=fig, result_dir=result_dir, save_fn=save_fn, show=False)
+
+        else:
+            AssociateRanges.ax_plot_n_dim(ax, t_vec, r_vec_err,
+                                          colors=[colors[0]], labels=[labels[0]], ls=ls_vec[0])
+
+            ax.grid()
+            ax.set_ylabel('angle error (gt-est)')
+            ax.set_xlabel('angle sorted index')
+            AssociateRanges.show_save_figure(fig=fig, result_dir=result_dir, save_fn=save_fn, show=False)
+
+        ax.legend()
+        stat = numpy_statistics(vNumpy=np.squeeze(np.asarray(r_vec_err)))
+        return fig, ax, stat, r_vec_err

@@ -197,7 +197,7 @@ class ROSBag_TrueRelPoses:
             if ID in dict_cfg["sensor_orientations"].keys():
                 # expecting: w,x,y,z
                 q_vec =  np.array(dict_cfg["sensor_orientations"][ID])
-                q_BT = Quaternion(q_vec).unit()
+                q_BT = UnitQuaternion(q_vec).unit()
                 pass
             dict_T_BODY_SENSOR[dict_cfg["sensor_topics"][ID]] = SE3.Rt(q_BT.R, t_BT, check=True)
             dict_poses[dict_cfg["sensor_topics"][ID]] = dict()
@@ -216,7 +216,7 @@ class ROSBag_TrueRelPoses:
                         q_GB = [msg.pose.orientation.w, msg.pose.orientation.x, msg.pose.orientation.y,
                                 msg.pose.orientation.z]
 
-                        q = Quaternion(q_GB).unit()
+                        q = UnitQuaternion(q_GB).unit()
                         T_GLOBAL_BODY = SE3.Rt(q.R, p, check=True)
                         pass
                     elif hasattr(msg, 'header') and hasattr(msg, 'transform'):
@@ -224,7 +224,7 @@ class ROSBag_TrueRelPoses:
                             [msg.transform.translation.x, msg.transform.translation.y, msg.transform.translation.z])
                         q_GB = [msg.transform.rotation.w, msg.transform.rotation.x, msg.transform.rotation.y,
                                 msg.transform.rotation.z]
-                        q = Quaternion(q_GB).unit()
+                        q = UnitQuaternion(q_GB).unit()
                         T_GLOBAL_BODY = SE3.Rt(q.R, p, check=True)
                     else:
                         print("\nROSBag_TrueRelPoses: unsupported message " + str(msg))
@@ -275,9 +275,9 @@ class ROSBag_TrueRelPoses:
                                     T_GLOBAL_SENSOR2 = interpolate_pose(dict_history[dict_cfg["sensor_topics"][ID2]], timestamp, round_decimals)
 
                                     if T_GLOBAL_SENSOR1 is not None and T_GLOBAL_SENSOR2 is not None:
-                                        T_SENSOR1_SENSOR2 = SE3(T_GLOBAL_SENSOR1.inv() * T_GLOBAL_SENSOR2)
+                                        T_SENSOR1_SENSOR2 = T_GLOBAL_SENSOR1.inv() * T_GLOBAL_SENSOR2
                                         p = T_SENSOR1_SENSOR2.t
-                                        q = UnitQuaternion(T_SENSOR1_SENSOR2.R)
+                                        q = UnitQuaternion(T_SENSOR1_SENSOR2.R, norm=True).unit()
                                         qv = q.vec
 
                                         # TODO: add noise etc.

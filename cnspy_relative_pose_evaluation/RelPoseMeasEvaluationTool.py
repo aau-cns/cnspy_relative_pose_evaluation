@@ -41,7 +41,7 @@ from cnspy_relative_pose_evaluation.RelPoseMeasEvaluation import RelPoseMeasEval
 
 class RelPoseMeasEvaluationTool:
     @staticmethod
-    def evaluate(bagfile_in, cfg, result_dir=None, verbose=True, show_plot=True, save_plot=True):
+    def evaluate(bagfile_in, cfg, result_dir=None, verbose=True, show_plot=True, save_plot=True, ID_arr=None):
         if not os.path.isfile(bagfile_in):
             print("RangeEvaluationTool: could not find file: %s" % bagfile_in)
             return False
@@ -84,6 +84,9 @@ class RelPoseMeasEvaluationTool:
         if verbose:
             print("* topic_list= " + str(topic_list))
             print("* Sensor_ID_arr= " + str(Sensor_ID_arr))
+
+        if ID_arr:
+            Sensor_ID_arr = ID_arr
 
         #topic_list=['/d01/ranging', '/a01/ranging', '/a02/ranging', '/a03/ranging']
         fn_meas_ranges = str(result_dir + '/all-meas-ranges.csv')
@@ -150,7 +153,8 @@ class RelPoseMeasEvaluationTool:
                                      plot_ranges=True,
                                      plot_angles=True,
                                      plot_ranges_sorted=False,
-                                     plot_range_error=False,
+                                     plot_range_error=True,
+                                     plot_angle_error=True,
                                      plot_range_histogram=False,
                                      filter_histogram=False,
                                      verbose=verbose

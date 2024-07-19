@@ -344,7 +344,7 @@ class RelPose_ROSBag2CSV:
                         range = LA.norm([pose_id.pose.position.x, pose_id.pose.position.y, pose_id.pose.position.z])
                         q = UnitQuaternion(
                             [pose_id.pose.orientation.w, pose_id.pose.orientation.x, pose_id.pose.orientation.y,
-                             pose_id.pose.orientation.z], norm=True)
+                             pose_id.pose.orientation.z], norm=True).unit()
                         [ang, vec] = q.angvec()
 
                         content = ["%f" % timestamp, str(ID1), str(ID2),
