@@ -30,33 +30,23 @@ import math
 from cnspy_numpy_utils.numpy_statistics import *
 from cnspy_timestamp_association.TimestampAssociation import TimestampAssociation
 from cnspy_trajectory.PlotLineStyle import PlotLineStyle
-from cnspy_ranging_evaluation.AssociateRanges import AssociateRanges
+from cnspy_ranging_evaluation.AssociateRanges import AssociateRanges, AssociateRangesCfg
 
-class AssociateRelPoseCfg:
-    ID1 = None
-    ID2 = None
-    relative_timestamps = False
-    max_difference = 0.02
-    subsample = 0
-    verbose = False
-    remove_outliers = False,
-    max_range = 30
-    range_error_val = 0
-    label_timestamp = 't'
-    label_ID1 = 'ID1'
-    label_ID2 = 'ID2'
-    label_range = 'range'
+class AssociateRelPoseCfg(AssociateRangesCfg):
+    label_angle = 'angle'
 
     def __init__(self, ID1=None, ID2=None, relative_timestamps=False,
                  max_difference=0.02, subsample=0, verbose=False, remove_outliers=False,
                  max_range=30, range_error_val=0, label_timestamp='t',
                  label_ID1='ID1',
                  label_ID2='ID2',
-                 label_range = 'range'):
-        self.label_timestamp = label_timestamp
+                 label_range = 'range',
+                 label_angle = 'angle'):
+        self.label_timestame = label_timestamp
         self.label_ID1 = label_ID1
         self.label_ID2 = label_ID2
         self.label_range = label_range
+        self.label_angle = label_angle
         self.ID1 = ID1
         self.ID2 = ID2
         self.relative_timestamps = relative_timestamps
@@ -109,10 +99,12 @@ class AssociateRelPoses(AssociateRanges):
                 return
 
         # compute range
-        range_est = np.linalg.norm(self.csv_df_est[['tx', 'ty', 'tz']].to_numpy(), axis=1)
-        self.csv_df_est[cfg.label_range] = range_est
-        range_gt = np.linalg.norm(self.csv_df_gt[['tx', 'ty', 'tz']].to_numpy(), axis=1)
-        self.csv_df_gt[cfg.label_range] = range_gt
+        if 'range' not in self.csv_df_est:
+            range_est = np.linalg.norm(self.csv_df_est[['tx', 'ty', 'tz']].to_numpy(), axis=1)
+            self.csv_df_est[cfg.label_range] = range_est
+        if 'range' not in self.csv_df_gt:
+            range_gt = np.linalg.norm(self.csv_df_gt[['tx', 'ty', 'tz']].to_numpy(), axis=1)
+            self.csv_df_gt[cfg.label_range] = range_gt
 
         if cfg.remove_outliers:
             self.csv_df_est[cfg.label_range] = self.csv_df_est[cfg.label_range].where(
