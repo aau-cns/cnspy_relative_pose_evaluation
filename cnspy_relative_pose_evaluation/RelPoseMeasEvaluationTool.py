@@ -137,23 +137,24 @@ class RelPoseMeasEvaluationTool:
                                  label_range='range')
 
         eval = RelPoseMeasEvaluation(fn_gt=fn_gt_ranges,
-                               fn_est=fn_meas_ranges,
-                               ID1_arr=Sensor_ID_arr,
-                               ID2_arr=Sensor_ID_arr,
-                               cfg=cfg,
-                               result_dir=str(result_dir + '/eval/'),
-                               prefix='',
-                               save_plot=save_plot,
-                               show_plot=show_plot,
-                               save_statistics=True,
-                               plot_timestamps=True,
-                               plot_ranges=True,
-                               plot_ranges_sorted=True,
-                               plot_error=True,
-                               plot_histogram=True,
-                               filter_histogram=False,
-                               verbose=verbose
-                               )
+                                     fn_est=fn_meas_ranges,
+                                     ID1_arr=Sensor_ID_arr,
+                                     ID2_arr=Sensor_ID_arr,
+                                     cfg=cfg,
+                                     result_dir=str(result_dir + '/eval/'),
+                                     prefix='',
+                                     save_plot=save_plot,
+                                     show_plot=show_plot,
+                                     save_statistics=True,
+                                     plot_timestamps=False,
+                                     plot_ranges=True,
+                                     plot_angles=True,
+                                     plot_ranges_sorted=False,
+                                     plot_range_error=False,
+                                     plot_range_histogram=False,
+                                     filter_histogram=False,
+                                     verbose=verbose
+                                     )
         pass  # DONE
 
 def main():

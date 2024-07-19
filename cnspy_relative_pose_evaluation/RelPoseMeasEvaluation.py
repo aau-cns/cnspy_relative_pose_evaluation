@@ -49,9 +49,10 @@ class RelPoseMeasEvaluation:
                  cfg = AssociateRelPoseCfg(),
                  plot_timestamps=True,
                  plot_ranges=True,
+                 plot_angles=True,
                  plot_ranges_sorted=True,
-                 plot_error =True,
-                 plot_histogram=True,
+                 plot_range_error =True,
+                 plot_range_histogram=True,
                  verbose=False,
                  filter_histogram=True
                  ):
@@ -61,9 +62,9 @@ class RelPoseMeasEvaluation:
             prefix = ''
 
         statistics_file = None
-        if save_statistics and not plot_histogram:
+        if save_statistics and not plot_range_histogram:
             print("RangeEvaluation: Warning save_statistics can only be used in combination with plot_histogram")
-            plot_histogram = True
+            plot_range_histogram = True
         if save_statistics:
             if not os.path.exists(result_dir):
                 os.makedirs(result_dir)
@@ -103,13 +104,16 @@ class RelPoseMeasEvaluation:
             if plot_ranges:
                 fig_r = plt.figure(figsize=(20, 15), dpi=int(200))
                 fig_r.suptitle('Ranges of ID=' + str(ID1), fontsize=16)
+            if plot_angles:
+                fig_a = plt.figure(figsize=(20, 15), dpi=int(200))
+                fig_a.suptitle('Angles of ID=' + str(ID1), fontsize=16)
             if plot_ranges_sorted:
                 fig_rs = plt.figure(figsize=(20, 15), dpi=int(200))
                 fig_rs.suptitle('Range sorted of ID=' + str(ID1), fontsize=16)
-            if plot_error:
+            if plot_range_error:
                 fig_e = plt.figure(figsize=(20, 15), dpi=int(200))
                 fig_e.suptitle('Error of ID=' + str(ID1), fontsize=16)
-            if plot_histogram:
+            if plot_range_histogram:
                 fig_h = plt.figure(figsize=(20, 15), dpi=int(200))
                 fig_h.suptitle('Histograms of ID=' + str(ID1), fontsize=16)
             if save_statistics:
@@ -143,17 +147,21 @@ class RelPoseMeasEvaluation:
                     ax_r = fig_r.add_subplot(n_rows, n_cols, idx)
                     assoc.plot_ranges(fig=fig_r, ax=ax_r, cfg_title=cfg_title)
 
+                if plot_angles:
+                    ax_a = fig_a.add_subplot(n_rows, n_cols, idx)
+                    assoc.plot_angles(fig=fig_a, ax=ax_a, cfg_title=cfg_title)
+
                 if plot_ranges_sorted:
                     ax_rs = fig_rs.add_subplot(n_rows, n_cols, idx)
                     assoc.plot_ranges(fig=fig_rs, ax=ax_rs, sorted=True, cfg_title=cfg_title)
-                if plot_error:
+                if plot_range_error:
                     ax_e = fig_e.add_subplot(n_rows, n_cols, idx)
                     [fig_, ax_, stat, r_vec_err_] = assoc.plot_range_error(fig=fig_e, ax=ax_e,
                                                                         sorted=False,
                                                                         remove_outlier=True,
                                                                         cfg_title=cfg_title)
                     cnspy_numpy_utils.numpy_statistics.print_statistics(stat, desc=cfg_title + " error")
-                if plot_histogram:
+                if plot_range_histogram:
                     ax_h = fig_h.add_subplot(n_rows, n_cols, idx)
                     [fig_, ax_, stat, r_vec_err_] = assoc.plot_error_histogram(fig=fig_h,
                                                                                 ax=ax_h,
@@ -182,7 +190,12 @@ class RelPoseMeasEvaluation:
                    AssociateRelPoses.show_save_figure(fig=fig_r, result_dir=result_dir,
                                                     save_fn=str("Ranges_ID" + str(ID1)),
                                                     show=show_plot, close_figure=not show_plot)
-
+            if plot_angles:
+               fig_a.tight_layout()
+               if save_plot:
+                   AssociateRelPoses.show_save_figure(fig=fig_a, result_dir=result_dir,
+                                                    save_fn=str("Angle_ID" + str(ID1)),
+                                                    show=show_plot, close_figure=not show_plot)
             if plot_ranges_sorted:
                 fig_rs.tight_layout()
                 if save_plot:
@@ -190,14 +203,14 @@ class RelPoseMeasEvaluation:
                                                      save_fn=str("Range_Sorted_ID" + str(ID1)),
                                                      show=show_plot, close_figure=not show_plot)
 
-            if plot_error:
+            if plot_range_error:
                 fig_e.tight_layout()
                 if save_plot:
                     AssociateRelPoses.show_save_figure(fig=fig_e, result_dir=result_dir,
                                                      save_fn=str("Errors_ID" + str(ID1)),
                                                      show=show_plot, close_figure=not show_plot)
 
-            if plot_histogram:
+            if plot_range_histogram:
                 fig_h.tight_layout()
                 if save_plot:
                     AssociateRelPoses.show_save_figure(fig=fig_h, result_dir=result_dir,
@@ -262,22 +275,22 @@ def main():
                              label_ID2=args.label_ID2,
                              label_range = args.label_range)
 
-    eval = RelPoseMeasEvaluation( fn_gt=args.fn_gt,
-                            fn_est=args.fn_est,
-                            ID1_arr=args.UWB_ID1s,
-                            ID2_arr=args.UWB_ID2s,
-                            cfg=cfg,
-                            result_dir=args.result_dir,
-                            prefix=args.prefix,
-                            save_plot=args.save_plot,
-                            show_plot=args.show_plot,
-                            save_statistics=args.save_statistics,
-                            plot_timestamps=args.plot_timestamps,
-                            plot_ranges=args.plot_ranges,
-                            plot_ranges_sorted=args.plot_ranges_sorted,
-                            plot_error=args.plot_errors,
-                            plot_histogram=args.plot_histograms,
-                            )
+    eval = RelPoseMeasEvaluation(fn_gt=args.fn_gt,
+                                 fn_est=args.fn_est,
+                                 ID1_arr=args.UWB_ID1s,
+                                 ID2_arr=args.UWB_ID2s,
+                                 cfg=cfg,
+                                 result_dir=args.result_dir,
+                                 prefix=args.prefix,
+                                 save_plot=args.save_plot,
+                                 show_plot=args.show_plot,
+                                 save_statistics=args.save_statistics,
+                                 plot_timestamps=args.plot_timestamps,
+                                 plot_ranges=args.plot_ranges,
+                                 plot_ranges_sorted=args.plot_ranges_sorted,
+                                 plot_range_error=args.plot_errors,
+                                 plot_range_histogram=args.plot_histograms,
+                                 )
 
     print(" ")
     print("finished after [%s sec]\n" % str(time.time() - tp_start))

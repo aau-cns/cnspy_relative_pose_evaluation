@@ -20,12 +20,13 @@
 # numpy, matplotlib
 ########################################################################################################################
 import os
-from sys import version_info
-import time
-import numpy as np
-from matplotlib import pyplot as plt
-import pandas as pandas
 import math
+import time
+from sys import version_info
+from matplotlib import pyplot as plt
+import numpy as np
+import pandas as pandas
+from spatialmath import UnitQuaternion
 
 from cnspy_numpy_utils.numpy_statistics import *
 from cnspy_timestamp_association.TimestampAssociation import TimestampAssociation
@@ -105,6 +106,11 @@ class AssociateRelPoses(AssociateRanges):
         if 'range' not in self.csv_df_gt:
             range_gt = np.linalg.norm(self.csv_df_gt[['tx', 'ty', 'tz']].to_numpy(), axis=1)
             self.csv_df_gt[cfg.label_range] = range_gt
+        # compute angle
+        if 'angle' not in self.csv_df_est:
+            self.csv_df_est[cfg.label_angle] = AssociateRelPoses.quat2ang_arr(self.csv_df_est[['tx', 'ty', 'tz']].to_numpy())
+        if 'angle' not in self.csv_df_gt:
+            self.csv_df_gt[cfg.label_angle] = AssociateRelPoses.quat2ang_arr(self.csv_df_gt[['tx', 'ty', 'tz']].to_numpy())
 
         if cfg.remove_outliers:
             self.csv_df_est[cfg.label_range] = self.csv_df_est[cfg.label_range].where(
@@ -167,9 +173,72 @@ class AssociateRelPoses(AssociateRanges):
         self.matches_est_gt = zip(idx_est, idx_gt)
 
         if cfg.verbose:
-            print("AssociateRanges(): {} timestamps associated.".format(len(idx_est)))
+            print("AssociateRelPoses(): {} timestamps associated.".format(len(idx_est)))
 
         self.data_loaded = True
         # using zip() and * operator to
         # perform Unzipping
         # res = list(zip(*test_list))
+
+    @staticmethod
+    def quat2ang_arr(q_arr):
+        def myfunction(x):
+            q = UnitQuaternion(x)
+            [angle, vec] = q.angvec()
+            return angle
+
+        [rows, cols] = q_arr.shape()
+        assert(cols == 4);
+        return np.apply_along_axis(myfunction, axis=1, arr=q_arr)
+
+
+    def plot_angles(self, cfg_dpi=200, cfg_title="angles", sorted=False, fig=None, ax=None,
+                    colors=['r', 'g'], labels=['gt', 'est'],
+                    ls_vec=[PlotLineStyle(linestyle='-'), PlotLineStyle(linestyle='-.')],
+                    save_fn="", result_dir="."):
+        if not self.data_loaded:
+            return
+        if fig is None:
+            fig = plt.figure(figsize=(20, 15), dpi=int(cfg_dpi))
+        if ax is None:
+            ax = fig.add_subplot(111)
+        if cfg_title:
+            ax.set_title(cfg_title)
+
+        if version_info[0] < 3:
+            t_vec_gt = self.data_frame_gt_matched.as_matrix([self.cfg.label_timestamp])
+            t_vec_est = self.data_frame_est_matched.as_matrix([self.cfg.label_timestamp])
+        else:
+            t_vec_gt = self.data_frame_gt_matched[[self.cfg.label_timestamp]].to_numpy()
+            t_vec_est = self.data_frame_est_matched[[self.cfg.label_timestamp]].to_numpy()
+
+        if version_info[0] < 3:
+            r_vec_gt = self.data_frame_gt_matched.as_matrix([self.cfg.label_angle])
+            r_vec_est = self.data_frame_est_matched.as_matrix([self.cfg.label_angle])
+        else:
+            r_vec_gt = self.data_frame_gt_matched[[self.cfg.label_angle]].to_numpy()
+            r_vec_est = self.data_frame_est_matched[[self.cfg.label_angle]].to_numpy()
+
+        if not sorted:
+            # x_arr = range(len(t_vec_gt))
+            AssociateRanges.ax_plot_n_dim(ax, t_vec_gt, r_vec_gt, colors=[colors[0]], labels=[labels[0]], ls=ls_vec[0])
+            # x_arr = range(len(t_vec_est))
+            AssociateRanges.ax_plot_n_dim(ax, t_vec_est, r_vec_est, colors=[colors[1]], labels=[labels[1]], ls=ls_vec[1])
+
+            ax.grid()
+            ax.set_ylabel('angle')
+            ax.set_xlabel('time [s]')
+            AssociateRanges.show_save_figure(fig=fig, result_dir=result_dir, save_fn=save_fn, show=False)
+
+        else:
+            gt_indices_sorted = np.argsort(r_vec_gt, axis=0)
+            x_arr = range(len(r_vec_gt))
+            AssociateRanges.ax_plot_n_dim(ax, x_arr, np.take_along_axis(r_vec_gt, gt_indices_sorted, axis=0), colors=[colors[0]], labels=[labels[0]], ls=ls_vec[0])
+            AssociateRanges.ax_plot_n_dim(ax, x_arr, np.take_along_axis(r_vec_est, gt_indices_sorted, axis=0), colors=[colors[1]], labels=[labels[1]], ls=ls_vec[1])
+            ax.grid()
+            ax.set_ylabel('angle')
+            ax.set_xlabel('angle sorted index')
+            AssociateRanges.show_save_figure(fig=fig, result_dir=result_dir, save_fn=save_fn, show=False)
+
+        ax.legend()
+        return fig, ax
