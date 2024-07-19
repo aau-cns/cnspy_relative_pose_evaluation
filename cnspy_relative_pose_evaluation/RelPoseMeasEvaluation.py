@@ -96,24 +96,24 @@ class RelPoseMeasEvaluation:
         plt.rc('legend', fontsize=SMALL_SIZE)  # legend fontsize
         plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
-        for UWB_ID1 in ID1_arr:
+        for ID1 in ID1_arr:
             if plot_timestamps:
                 fig_t = plt.figure(figsize=(20, 15), dpi=int(200))
-                fig_t.suptitle('Timestamps of ID=' + str(UWB_ID1), fontsize=16)
+                fig_t.suptitle('Timestamps of ID=' + str(ID1), fontsize=16)
             if plot_ranges:
                 fig_r = plt.figure(figsize=(20, 15), dpi=int(200))
-                fig_r.suptitle('Ranges of ID=' + str(UWB_ID1), fontsize=16)
+                fig_r.suptitle('Ranges of ID=' + str(ID1), fontsize=16)
             if plot_ranges_sorted:
                 fig_rs = plt.figure(figsize=(20, 15), dpi=int(200))
-                fig_rs.suptitle('Range sorted of ID=' + str(UWB_ID1), fontsize=16)
+                fig_rs.suptitle('Range sorted of ID=' + str(ID1), fontsize=16)
             if plot_error:
                 fig_e = plt.figure(figsize=(20, 15), dpi=int(200))
-                fig_e.suptitle('Error of ID=' + str(UWB_ID1), fontsize=16)
+                fig_e.suptitle('Error of ID=' + str(ID1), fontsize=16)
             if plot_histogram:
                 fig_h = plt.figure(figsize=(20, 15), dpi=int(200))
-                fig_h.suptitle('Histograms of ID=' + str(UWB_ID1), fontsize=16)
+                fig_h.suptitle('Histograms of ID=' + str(ID1), fontsize=16)
             if save_statistics:
-                dict_statistics_i = {'ID' : UWB_ID1, 'contant_bias_table' : dict(), 'noise_table' : dict()}
+                dict_statistics_i = {'ID' : ID1, 'contant_bias_table' : dict(), 'noise_table' : dict()}
                 pass
 
             n = len(ID2_arr)
@@ -125,13 +125,13 @@ class RelPoseMeasEvaluation:
                 n_cols = sqrt_n
 
             idx = 1
-            for UWB_ID2 in ID2_arr:
-                if UWB_ID1 == UWB_ID2:
+            for ID2 in ID2_arr:
+                if ID1 == ID2:
                     continue
 
-                cfg.UWB_ID1 = int(UWB_ID1)
-                cfg.UWB_ID2 = int(UWB_ID2)
-                cfg_title = str("ID" + str(UWB_ID1) + " to ID" + str(UWB_ID2))
+                cfg.ID1 = int(ID1)
+                cfg.ID2 = int(ID2)
+                cfg_title = str("ID" + str(ID1) + " to ID" + str(ID2))
                 assoc = AssociateRelPoses(fn_gt=fn_gt, fn_est=fn_est, cfg=cfg)
                 assoc.save(result_dir=result_dir, prefix=prefix+cfg_title)
 
@@ -160,8 +160,8 @@ class RelPoseMeasEvaluation:
                                                                                 max_error=50,
                                                                                 filter_histogramm=filter_histogram)
                     if stat is not None:
-                        dict_statistics_i['contant_bias_table'][UWB_ID2] = round(float(stat['mean']),2)
-                        dict_statistics_i['noise_table'][UWB_ID2] = round(float(stat['std']),2)
+                        dict_statistics_i['contant_bias_table'][ID2] = round(float(stat['mean']),2)
+                        dict_statistics_i['noise_table'][ID2] = round(float(stat['std']),2)
 
                 # the histogram of the date
                 idx += 1
@@ -173,35 +173,35 @@ class RelPoseMeasEvaluation:
                 fig_t.tight_layout()
                 if save_plot:
                     AssociateRelPoses.show_save_figure(fig=fig_t, result_dir=result_dir,
-                                                     save_fn=str("Timestamps" + str(UWB_ID1)),
+                                                     save_fn=str("Timestamps" + str(ID1)),
                                                      show=show_plot, close_figure=not show_plot)
 
             if plot_ranges:
                fig_r.tight_layout()
                if save_plot:
                    AssociateRelPoses.show_save_figure(fig=fig_r, result_dir=result_dir,
-                                                    save_fn=str("Ranges_ID" + str(UWB_ID1)),
+                                                    save_fn=str("Ranges_ID" + str(ID1)),
                                                     show=show_plot, close_figure=not show_plot)
 
             if plot_ranges_sorted:
                 fig_rs.tight_layout()
                 if save_plot:
                     AssociateRelPoses.show_save_figure(fig=fig_rs, result_dir=result_dir,
-                                                     save_fn=str("Range_Sorted_ID" + str(UWB_ID1)),
+                                                     save_fn=str("Range_Sorted_ID" + str(ID1)),
                                                      show=show_plot, close_figure=not show_plot)
 
             if plot_error:
                 fig_e.tight_layout()
                 if save_plot:
                     AssociateRelPoses.show_save_figure(fig=fig_e, result_dir=result_dir,
-                                                     save_fn=str("Errors_ID" + str(UWB_ID1)),
+                                                     save_fn=str("Errors_ID" + str(ID1)),
                                                      show=show_plot, close_figure=not show_plot)
 
             if plot_histogram:
                 fig_h.tight_layout()
                 if save_plot:
                     AssociateRelPoses.show_save_figure(fig=fig_h, result_dir=result_dir,
-                                                     save_fn=str("Histograms_ID" + str(UWB_ID1)),
+                                                     save_fn=str("Histograms_ID" + str(ID1)),
                                                      show=show_plot, close_figure=not show_plot)
 
             if save_statistics:
