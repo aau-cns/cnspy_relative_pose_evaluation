@@ -26,6 +26,8 @@ import argparse
 import yaml
 import csv
 from tqdm import tqdm
+from numpy import linalg as LA
+from spatialmath import UnitQuaternion, Quaternion
 
 from std_msgs.msg import Header, Time
 #from uwb_msgs.msg import TwoWayRangeStamped
@@ -168,7 +170,7 @@ class RelPose_ROSBag2CSV:
                     file_writer = dict_file_writers[topic]
 
                     if not dict_header_written[topic]:
-                        file_writer.writerow(["t", "ID1", "ID2", "tx", "ty", "tz", "qw", "qx", "qy", "qz"])
+                        file_writer.writerow(["t", "ID1", "ID2", "tx", "ty", "tz", "qw", "qx", "qy", "qz", "range", "angle"])
                         dict_header_written[topic] = True
 
                     ID1 = get_key_from_value(dict_cfg["relpose_topics"], topic)
@@ -177,15 +179,20 @@ class RelPose_ROSBag2CSV:
                     for pose_id in msg.poses:
                         ID2 = pose_id.id
                         # HINT: conversions:
+                        range = LA.norm([pose_id.pose.position.x, pose_id.pose.position.y, pose_id.pose.position.z])
+                        q = UnitQuaternion([pose_id.pose.orientation.w, pose_id.pose.orientation.x, pose_id.pose.orientation.y, pose_id.pose.orientation.z], norm=True)
+                        [ang, vec] = q.angvec()
 
-                        content = ["%f" % timestamp, str(ID1), str(ID2),
+                        content = ["%f" % round(timestamp, round_decimals), str(ID1), str(ID2),
                                    str(round(pose_id.pose.position.x, round_decimals)),
                                    str(round(pose_id.pose.position.y, round_decimals)),
                                    str(round(pose_id.pose.position.z, round_decimals)),
                                    str(round(pose_id.pose.orientation.w, round_decimals)),
                                    str(round(pose_id.pose.orientation.x, round_decimals)),
                                    str(round(pose_id.pose.orientation.y, round_decimals)),
-                                   str(round(pose_id.pose.orientation.z, round_decimals))]
+                                   str(round(pose_id.pose.orientation.z, round_decimals)),
+                                   str(round(range, round_decimals)),
+                                   str(round(ang, round_decimals))]
                         file_writer.writerow(content)
                         idx_pose += 1
                         cnt += 1
@@ -303,7 +310,7 @@ class RelPose_ROSBag2CSV:
 
         csvfile = open(filename, 'w+')
         file_writer = csv.writer(csvfile, delimiter=',', lineterminator='\n')
-        file_writer.writerow(["t", "ID1", "ID2", "tx", "ty", "tz", "qw", "qx", "qy", "qz"])
+        file_writer.writerow(["t", "ID1", "ID2", "tx", "ty", "tz", "qw", "qx", "qy", "qz", "range", "angle"])
 
         ## check if desired topics are in the bag file:
         num_messages = info_dict['messages']
@@ -334,6 +341,11 @@ class RelPose_ROSBag2CSV:
                     for pose_id in msg.poses:
                         ID2 = pose_id.id
                         # HINT: conversions:
+                        range = LA.norm([pose_id.pose.position.x, pose_id.pose.position.y, pose_id.pose.position.z])
+                        q = UnitQuaternion(
+                            [pose_id.pose.orientation.w, pose_id.pose.orientation.x, pose_id.pose.orientation.y,
+                             pose_id.pose.orientation.z], norm=True)
+                        [ang, vec] = q.angvec()
 
                         content = ["%f" % timestamp, str(ID1), str(ID2),
                                    str(round(pose_id.pose.position.x, round_decimals)),
@@ -342,7 +354,9 @@ class RelPose_ROSBag2CSV:
                                    str(round(pose_id.pose.orientation.w, round_decimals)),
                                    str(round(pose_id.pose.orientation.x, round_decimals)),
                                    str(round(pose_id.pose.orientation.y, round_decimals)),
-                                   str(round(pose_id.pose.orientation.z, round_decimals))]
+                                   str(round(pose_id.pose.orientation.z, round_decimals)),
+                                   str(round(range, round_decimals)),
+                                   str(round(ang, round_decimals))]
                         file_writer.writerow(content)
                         idx_pose += 1
                         cnt += 1
