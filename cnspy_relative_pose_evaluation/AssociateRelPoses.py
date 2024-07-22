@@ -33,6 +33,20 @@ from cnspy_timestamp_association.TimestampAssociation import TimestampAssociatio
 from cnspy_trajectory.PlotLineStyle import PlotLineStyle
 from cnspy_ranging_evaluation.AssociateRanges import AssociateRanges, AssociateRangesCfg
 
+from cnspy_trajectory.Trajectory import Trajectory
+from cnspy_trajectory.TrajectoryEstimated import TrajectoryEstimated
+from cnspy_trajectory.TrajectoryError import TrajectoryError
+from cnspy_trajectory.TrajectoryPlotConfig import TrajectoryPlotConfig
+from cnspy_trajectory.TrajectoryErrorType import TrajectoryErrorType
+
+from cnspy_trajectory_evaluation.EstimationTrajectoryError import EstimationTrajectoryError
+from cnspy_trajectory_evaluation.AbsoluteTrajectoryError import AbsoluteTrajectoryError
+from cnspy_spatial_csv_formats.EstimationErrorType import EstimationErrorType
+from cnspy_spatial_csv_formats.ErrorRepresentationType import ErrorRepresentationType
+from cnspy_spatial_csv_formats.CSVSpatialFormatType import CSVSpatialFormatType
+from cnspy_spatial_csv_formats.CSVSpatialFormat import  CSVSpatialFormat
+
+
 class AssociateRelPoseCfg(AssociateRangesCfg):
     label_angle = 'angle'
 
@@ -71,13 +85,17 @@ class AssociateRelPoses(AssociateRanges):
     cfg = AssociateRelPoseCfg()
     data_loaded = False
 
+    traj_err = None # TrajectoryEstimationError()
+    traj_est = None
+
     def __init__(self, fn_gt, fn_est, cfg):
         #AssociateRanges.__init__(self)
         cfg = cfg
         self.load(fn_gt, fn_est, cfg)
+        self.compute_error()
 
     def load(self, fn_gt, fn_est, cfg):
-
+        assert(isinstance(cfg, AssociateRelPoseCfg))
         assert (os.path.exists(fn_gt)), str("Path to fn_gt does not exist!:" + str(fn_gt))
         assert (os.path.exists((fn_est))), str("Path to fn_est does not exist!:" + str(fn_est))
 
@@ -179,6 +197,35 @@ class AssociateRelPoses(AssociateRanges):
         # using zip() and * operator to
         # perform Unzipping
         # res = list(zip(*test_list))
+
+
+    def compute_error(self):
+        if not self.data_loaded:
+            return None
+        assert version_info[0] >= 3, "Unsupported dataframe version..."
+
+        # Note: Trajectory uses the weired HTMQ quaternion conventions, with real part last...
+        self.traj_est = TrajectoryEstimated(t_vec = self.data_frame_est_matched['t'].to_numpy(),
+                                       p_vec=self.data_frame_est_matched[['tx', 'ty', 'tz']].to_numpy(),
+                                       q_vec=self.data_frame_est_matched[[ 'qx', 'qy', 'qz', 'qw']].to_numpy())
+        est_fmt = CSVSpatialFormat(fmt_type=CSVSpatialFormatType.PoseStamped,
+                                   est_err_type=EstimationErrorType.type1,
+                                   err_rep_type=ErrorRepresentationType.rpy_rad)
+        self.traj_est.set_format(est_fmt)
+        traj_gt = Trajectory(t_vec = self.data_frame_gt_matched['t'].to_numpy(),
+                                       p_vec=self.data_frame_gt_matched[['tx', 'ty', 'tz']].to_numpy(),
+                                       q_vec=self.data_frame_gt_matched[['qx', 'qy', 'qz', 'qw']].to_numpy())
+
+
+        self.traj_err = AbsoluteTrajectoryError.compute_trajectory_error(traj_est=self.traj_est,traj_gt=traj_gt, traj_err_type=TrajectoryErrorType(EstimationErrorType.type1))
+
+    def plot_traj_err(self, cfg=TrajectoryPlotConfig(), fig=None):
+
+        fig, ax1, ax2, ax3, ax4 = TrajectoryError.plot_pose_err(traj_est=self.traj_est, traj_err=self.traj_err,
+                                                                cfg=cfg, fig=fig,
+                                                                angles=True, plot_rpy=True)
+
+        return fig, ax1, ax2, ax3, ax4
 
     @staticmethod
     def quat2ang_arr(q_arr):
