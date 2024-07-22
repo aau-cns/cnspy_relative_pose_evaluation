@@ -174,8 +174,7 @@ class RelPose_ROSBag2CSV:
                         dict_header_written[topic] = True
 
                     ID1 = get_key_from_value(dict_cfg["relpose_topics"], topic)
-                    timestamp = t.to_sec()
-                    idx_pose = 0
+                    timestamp = msg.header.stamp.to_sec()
                     for pose_id in msg.poses:
                         ID2 = pose_id.id
                         # HINT: conversions:
@@ -183,7 +182,7 @@ class RelPose_ROSBag2CSV:
                         q = UnitQuaternion([pose_id.pose.orientation.w, pose_id.pose.orientation.x, pose_id.pose.orientation.y, pose_id.pose.orientation.z], norm=True)
                         [ang, vec] = q.angvec()
 
-                        content = ["%f" % round(timestamp, round_decimals), str(ID1), str(ID2),
+                        content = ["%f" % timestamp, str(ID1), str(ID2),
                                    str(round(pose_id.pose.position.x, round_decimals)),
                                    str(round(pose_id.pose.position.y, round_decimals)),
                                    str(round(pose_id.pose.position.z, round_decimals)),
@@ -194,7 +193,6 @@ class RelPose_ROSBag2CSV:
                                    str(round(range, round_decimals)),
                                    str(round(ang, round_decimals))]
                         file_writer.writerow(content)
-                        idx_pose += 1
                         cnt += 1
 
         ## CLEANUP:
@@ -336,8 +334,7 @@ class RelPose_ROSBag2CSV:
                     # HINT: conversions:
 
                     ID1 = get_key_from_value(dict_cfg["relpose_topics"], topic)
-                    timestamp = t.to_sec()
-                    idx_pose = 0
+                    timestamp = msg.header.stamp.to_sec()
                     for pose_id in msg.poses:
                         ID2 = pose_id.id
                         # HINT: conversions:
@@ -358,7 +355,6 @@ class RelPose_ROSBag2CSV:
                                    str(round(range, round_decimals)),
                                    str(round(ang, round_decimals))]
                         file_writer.writerow(content)
-                        idx_pose += 1
                         cnt += 1
 
         ## CLEANUP:
