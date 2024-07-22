@@ -34,6 +34,9 @@ from cnspy_timestamp_association.TimestampAssociation import TimestampAssociatio
 from cnspy_relative_pose_evaluation.AssociateRelPoses import AssociateRelPoses, AssociateRelPoseCfg
 from matplotlib import pyplot as plt
 
+from cnspy_trajectory.TrajectoryPlotConfig import TrajectoryPlotConfig
+
+
 class RelPoseMeasEvaluation:
 
     report = None
@@ -54,6 +57,7 @@ class RelPoseMeasEvaluation:
                  plot_range_error =True,
                  plot_angle_error=True,
                  plot_range_histogram=True,
+                 plot_pose_err=True,
                  verbose=False,
                  filter_histogram=True
                  ):
@@ -113,10 +117,18 @@ class RelPoseMeasEvaluation:
                 fig_rs.suptitle('Range sorted of ID=' + str(ID1), fontsize=16)
             if plot_range_error:
                 fig_re = plt.figure(figsize=(20, 15), dpi=int(200))
-                fig_re.suptitle('Error of ID=' + str(ID1), fontsize=16)
+                fig_re.suptitle('Range Error of ID=' + str(ID1), fontsize=16)
             if plot_angle_error:
                 fig_ae = plt.figure(figsize=(20, 15), dpi=int(200))
-                fig_ae.suptitle('Error of ID=' + str(ID1), fontsize=16)
+                fig_ae.suptitle('Angle Error of ID=' + str(ID1), fontsize=16)
+            if plot_pose_err:
+                fig_pe_dict = dict()
+                for ID2 in ID2_arr:
+                    if ID1 == ID2:
+                        continue
+                    fig_pe = plt.figure(figsize=(20, 15), dpi=int(200))
+                    fig_pe.suptitle('Pose Error of ID=' + str(ID1)  +" to " + str(ID2), fontsize=16)
+                    fig_pe_dict[ID2] = fig_pe
             if plot_range_histogram:
                 fig_h = plt.figure(figsize=(20, 15), dpi=int(200))
                 fig_h.suptitle('Histograms of ID=' + str(ID1), fontsize=16)
@@ -161,6 +173,16 @@ class RelPoseMeasEvaluation:
                 if plot_ranges_sorted:
                     ax_rs = fig_rs.add_subplot(n_rows, n_cols, idx)
                     assoc.plot_ranges(fig=fig_rs, ax=ax_rs, sorted=True, cfg_title=cfg_title)
+
+                if plot_pose_err:
+                    fig_pe = fig_pe_dict[ID2]
+                    cfg_plt = TrajectoryPlotConfig()
+                    cfg_plt.title = cfg_title
+                    cfg_plt.show = False
+                    cfg_plt.close_figure = False
+                    cfg_plt.unwrap = False
+                    assoc.plot_traj_err(fig=fig_pe, cfg=cfg_plt)
+
                 if plot_range_error:
                     ax_e = fig_re.add_subplot(n_rows, n_cols, idx)
                     [fig_, ax_, stat, r_vec_err_] = assoc.plot_range_error(fig=fig_re, ax=ax_e,
@@ -180,6 +202,8 @@ class RelPoseMeasEvaluation:
 
                 # the histogram of the date
                 idx += 1
+
+            # for ID2
             if verbose:
                 print("* RangeEvaluation(): ranges associated!")
 
@@ -216,6 +240,19 @@ class RelPoseMeasEvaluation:
                     AssociateRelPoses.show_save_figure(fig=fig_re, result_dir=result_dir,
                                                      save_fn=str("Range_Errors_ID" + str(ID1)),
                                                      show=show_plot, close_figure=not show_plot)
+
+            if plot_pose_err:
+                for ID2 in ID2_arr:
+                    if ID1 == ID2:
+                        continue
+                    fig_pe = fig_pe_dict[ID2]
+                    fig_pe.tight_layout()
+                    if save_plot:
+                        AssociateRelPoses.show_save_figure(fig=fig_pe, result_dir=result_dir,
+                                                         save_fn=str("Pose_Errors_ID" + str(ID1) + "_to_" +str(ID2)),
+                                                         show=show_plot, close_figure=not show_plot)
+                    pass
+
             if plot_angle_error:
                 fig_ae.tight_layout()
                 if save_plot:

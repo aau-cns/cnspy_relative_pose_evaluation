@@ -128,7 +128,7 @@ class RelPoseMeasEvaluationTool:
         cfg = AssociateRelPoseCfg(ID1=None,
                                  ID2=None,
                                  relative_timestamps=False,
-                                 max_difference=0.03,
+                                 max_difference=10**-4,
                                  subsample=0,
                                  verbose=True,
                                  remove_outliers=False,
@@ -138,6 +138,7 @@ class RelPoseMeasEvaluationTool:
                                  label_ID1='ID1',
                                  label_ID2='ID2',
                                  label_range='range')
+
 
         eval = RelPoseMeasEvaluation(fn_gt=fn_gt_ranges,
                                      fn_est=fn_meas_ranges,
@@ -153,8 +154,8 @@ class RelPoseMeasEvaluationTool:
                                      plot_ranges=True,
                                      plot_angles=True,
                                      plot_ranges_sorted=False,
-                                     plot_range_error=True,
-                                     plot_angle_error=True,
+                                     plot_range_error=False,
+                                     plot_angle_error=False,
                                      plot_range_histogram=False,
                                      filter_histogram=False,
                                      verbose=verbose
