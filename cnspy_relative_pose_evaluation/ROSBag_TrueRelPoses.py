@@ -35,17 +35,21 @@ from cnspy_ranging_evaluation.ROSBag_TrueRanges import HistoryBuffer, get_key_fr
 from std_msgs.msg import Header, Time
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformStamped
 
+from mrs_msgs.msg import PoseWithCovarianceArrayStamped, PoseWithCovarianceIdentified
+
 def interpolate_pose(pose_hist, timestamp, round_decimals=4):
     timestamp = round(timestamp, round_decimals)
     [ti, T_GLOBAL_BODY_Ti] = pose_hist.get_at_t(timestamp)
     if T_GLOBAL_BODY_Ti is None:
         [t1, T_GLOBAL_BODY_T1] = pose_hist.get_before_t(timestamp)
         [t2, T_GLOBAL_BODY_T2] = pose_hist.get_after_t(timestamp)
-
         if t1 is None or t2 is None:
             # if verbose:
             #    print("* skip measurement from topic=" + topic + " at t=" + str(timestamp))
             return None
+
+        assert (t1 <= t2), "Timestamp not ascending!"
+
         dt = t2 - t1
         dt_i = timestamp - t1
         i = abs(dt_i / dt)
@@ -56,6 +60,9 @@ def interpolate_pose(pose_hist, timestamp, round_decimals=4):
             return T_GLOBAL_BODY_T1
         elif i > 1.0-10**-2:
             return T_GLOBAL_BODY_T2
+        #if dt > 1.0:
+        #    print("WARNING: interpolate_pose(): dt="+str(dt) + " is huge!")
+
 
         # interpolate between poses:
         q0 = UnitQuaternion(T_GLOBAL_BODY_T1.R)
@@ -204,7 +211,7 @@ class ROSBag_TrueRelPoses:
             #print("ROSBag_TrueRelPoses: body sensor pose T(" + str(ID) + ")= " + str(dict_T_BODY_SENSOR[dict_cfg["sensor_topics"][ID]] ))
 
         ## extract the poses of the desired topics from the BAG file
-        round_decimals = 4
+        round_decimals = 6
         try:  # else already exists
             print("ROSBag_TrueRelPoses: extracting poses...")
             cnt_poses = 0
@@ -264,41 +271,47 @@ class ROSBag_TrueRelPoses:
                     if topic in dict_cfg["relpose_topics"].values() and hasattr(msg, 'poses') and hasattr(msg, 'header'):
                         ID1 = get_key_from_value(dict_cfg["relpose_topics"], topic)
                         idx_pose = 0
-                        timestamp = round(msg.header.stamp.to_sec(), round_decimals)
+                        timestamp = msg.header.stamp.to_sec()
+
+                        msg_gt = PoseWithCovarianceArrayStamped()
+                        msg_gt.header = msg.header
+
+
                         for relpose in msg.poses: # id, pose, covariance
                             ID2 = relpose.id
-                            for id2, topic2 in dict_cfg["sensor_topics"].items():
-                                if id2 == relpose.id:
-                                    #ID2 = get_key_from_value(dict_cfg["sensor_topics"], topic2)
+                            if ID2 in dict_cfg["sensor_topics"].keys():
+                                #ID2 = get_key_from_value(dict_cfg["sensor_topics"], topic2)
 
-                                    T_GLOBAL_SENSOR1 = interpolate_pose(dict_history[dict_cfg["sensor_topics"][ID1]], timestamp, round_decimals)
-                                    T_GLOBAL_SENSOR2 = interpolate_pose(dict_history[dict_cfg["sensor_topics"][ID2]], timestamp, round_decimals)
+                                T_GLOBAL_SENSOR1 = interpolate_pose(dict_history[dict_cfg["sensor_topics"][ID1]],
+                                                                    timestamp, round_decimals)
+                                T_GLOBAL_SENSOR2 = interpolate_pose(dict_history[dict_cfg["sensor_topics"][ID2]],
+                                                                    timestamp, round_decimals)
 
-                                    if T_GLOBAL_SENSOR1 is not None and T_GLOBAL_SENSOR2 is not None:
-                                        T_SENSOR1_SENSOR2 = T_GLOBAL_SENSOR1.inv() * T_GLOBAL_SENSOR2
-                                        p = T_SENSOR1_SENSOR2.t
-                                        q = UnitQuaternion(T_SENSOR1_SENSOR2.R, norm=True).unit()
-                                        qv = q.vec
+                                if T_GLOBAL_SENSOR1 is not None and T_GLOBAL_SENSOR2 is not None:
+                                    T_SENSOR1_SENSOR2 = T_GLOBAL_SENSOR1.inv() * T_GLOBAL_SENSOR2
+                                    p = T_SENSOR1_SENSOR2.t
+                                    q = UnitQuaternion(T_SENSOR1_SENSOR2.R, norm=True).unit()
+                                    qv = q.vec
 
-                                        # TODO: add noise etc.
-
-                                        msg.poses[idx_pose].pose.position.x = p[0]
-                                        msg.poses[idx_pose].pose.position.y = p[1]
-                                        msg.poses[idx_pose].pose.position.z = p[2]
-                                        msg.poses[idx_pose].pose.orientation.w = qv[0]
-                                        msg.poses[idx_pose].pose.orientation.x = qv[1]
-                                        msg.poses[idx_pose].pose.orientation.y = qv[2]
-                                        msg.poses[idx_pose].pose.orientation.z = qv[3]
-                                        if use_header_timestamp and hasattr(msg, "header"):
-                                            outbag.write(topic, msg, msg.header.stamp)
-                                        else:
-                                            outbag.write(topic, msg, t)
-                                        cnt += 1
-                                        pass
-                                    else:
-                                        continue
-
+                                    pos_id = PoseWithCovarianceIdentified()
+                                    pos_id.id = ID2
+                                    pos_id.pose.position.x = p[0]
+                                    # TODO: add noise etc.
+                                    pos_id.pose.position.x = p[0]
+                                    pos_id.pose.position.y = p[1]
+                                    pos_id.pose.position.z = p[2]
+                                    pos_id.pose.orientation.w = qv[0]
+                                    pos_id.pose.orientation.x = qv[1]
+                                    pos_id.pose.orientation.y = qv[2]
+                                    pos_id.pose.orientation.z = qv[3]
+                                    msg_gt.poses.append(pos_id)
                             idx_pose += 1
+                        # for id2
+                        if use_header_timestamp and hasattr(msg, "header"):
+                            outbag.write(topic, msg_gt, msg.header.stamp)
+                        else:
+                            outbag.write(topic, msg_gt, t)
+                        cnt += 1
 
                     else:
                         # write other topic
