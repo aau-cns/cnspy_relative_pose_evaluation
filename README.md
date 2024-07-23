@@ -54,3 +54,9 @@ sensor_topics: {0: "/uav10/vrpn_client/raw_pose", 1: "/uav11/vrpn_client/raw_pos
 relpose_topics: {0: "/uav10/data_handler/uvdar_fcu", 1: "/uav11/data_handler/uvdar_fcu", 2: "/uav12/data_handler/uvdar_fcu"}
 
 ```
+
+## License
+
+Software License Agreement (GNU GPLv3  License), refer to the LICENSE file.
+
+*Sharing is caring!* - [Roland Jung](https://github.com/jungr-ait)  
