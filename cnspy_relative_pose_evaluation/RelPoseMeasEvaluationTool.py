@@ -158,7 +158,7 @@ class RelPoseMeasEvaluationTool:
                                      plot_angle_error=False,
                                      plot_range_histogram=True,
                                      plot_angle_histogram=True,
-                                     filter_histogram=False,
+                                     filter_histogram=True,
                                      verbose=verbose
                                      )
         pass  # DONE

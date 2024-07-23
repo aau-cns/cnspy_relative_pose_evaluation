@@ -34,7 +34,11 @@ setup(
     install_requires=['numpy', 'pandas', 'spatialmath-python', 'scipy', 'matplotlib', 'joblib', 'configparser', 'cnspy_numpy_utils', 'cnspy_timestamp_association', 'cnspy_trajectory_evaluation', 'cnspy_ranging_evaluation' ],
     entry_points={
         'console_scripts': [
-            'RelativePoseEval = cnspy_relative_pose_evaluation.CSV_StaticBiasAnalysis:main',
+            'RelPoseMeasEvaluationTool = cnspy_relative_pose_evaluation.RelPoseMeasEvaluationTool:main',
+            'RelPoseMeasEvaluation = cnspy_relative_pose_evaluation.RelPoseMeasEvaluation:main',
+            'RelPose_ROSBag2CSV = cnspy_relative_pose_evaluation.RelPose_ROSBag2CSV:main',
+            'ROSBag_TrueRelPoses = cnspy_relative_pose_evaluation.ROSBag_TrueRelPoses:main',
+            'ROSBag_Poses2RelPose = cnspy_relative_pose_evaluation.ROSBag_Poses2RelPose:main',
         ],
     },
 )

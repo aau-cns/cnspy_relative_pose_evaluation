@@ -69,7 +69,7 @@ class RelPoseMeasEvaluation:
 
         statistics_file = None
         if save_statistics and not plot_range_histogram:
-            print("RangeEvaluation: Warning save_statistics can only be used in combination with plot_histogram")
+            print("RelPoseMeasEvaluation: Warning save_statistics can only be used in combination with plot_histogram")
             plot_range_histogram = True
         if save_statistics:
             if not os.path.exists(result_dir):
@@ -77,8 +77,8 @@ class RelPoseMeasEvaluation:
             stat_fn = os.path.join(result_dir, 'statistics.yaml')
             statistics_file = open(stat_fn, 'w')
             if verbose:
-                print("RangeEvaluation: stat_fn=" + stat_fn)
-            yaml.dump({'info': 'RangeEvaluation Statistics',
+                print("RelPoseMeasEvaluation: stat_fn=" + stat_fn)
+            yaml.dump({'info': 'RelPoseMeasEvaluation Statistics',
                        'time': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
                        'fn_gt': fn_gt,
                        'fn_est': fn_est,
@@ -137,10 +137,10 @@ class RelPoseMeasEvaluation:
                 fig_ha = plt.figure(figsize=(20, 15), dpi=int(200))
                 fig_ha.suptitle('Angle Error Histograms of ID=' + str(ID1), fontsize=16)
             if save_statistics:
-                dict_statistics_i = {'ID' : ID1, 'contant_bias_table' : dict(), 'noise_table' : dict()}
+                dict_statistics_i = {'ID' : ID1, 'range_constant_bias_table' : dict(), 'range_noise_table' : dict(), 'angle_constant_bias_table' : dict(), 'angle_noise_table' : dict()}
                 pass
 
-            n = len(ID2_arr)
+            n = len(ID2_arr)-1
             sqrt_n = math.floor(math.sqrt(n))
             n_rows = sqrt_n
             if sqrt_n*sqrt_n < n:
@@ -201,14 +201,17 @@ class RelPoseMeasEvaluation:
                                                                                      max_error=cfg.max_range_error,
                                                                                      filter_histogramm=filter_histogram)
                     if stat is not None:
-                        dict_statistics_i['contant_bias_table'][ID2] = round(float(stat['mean']),2)
-                        dict_statistics_i['noise_table'][ID2] = round(float(stat['std']),2)
+                        dict_statistics_i['range_constant_bias_table'][ID2] = round(float(stat['mean']),2)
+                        dict_statistics_i['range_noise_table'][ID2] = round(float(stat['std']),2)
                 if plot_angle_histogram:
                     ax_ha = fig_ha.add_subplot(n_rows, n_cols, idx)
                     [fig_, ax_, stat, r_vec_err_] = assoc.plot_angle_error_histogram(fig=fig_ha,
                                                                                      ax=ax_ha,
                                                                                      max_error=10,
                                                                                      filter_histogramm=filter_histogram)
+                    if stat is not None:
+                        dict_statistics_i['angle_constant_bias_table'][ID2] = round(float(stat['mean']),2)
+                        dict_statistics_i['angle_noise_table'][ID2] = round(float(stat['std']),2)
                 # the histogram of the date
                 idx += 1
 
@@ -295,13 +298,13 @@ class RelPoseMeasEvaluation:
 
 def main():
     parser = argparse.ArgumentParser(
-        description='RangeEvaluation: evaluate and estimated and true pairwise ranges')
+        description='RelPoseMeasEvaluation: evaluate and estimated and true pairwise relative pose measurements')
     parser.add_argument('--fn_gt', help='input ground-truth trajectory CSV file', default="not specified")
     parser.add_argument('--fn_est', help='input estimated  trajectory CSV file', default="not specified")
     parser.add_argument('--result_dir', help='directory to store results [otherwise bagfile name will be a directory]',
                         default='')
-    parser.add_argument('--UWB_ID1s', help='ID of TX', nargs='+', default=[0])
-    parser.add_argument('--UWB_ID2s', help='ID of RX', nargs='+', default=[1])
+    parser.add_argument('--ID1s', help='ID of TX', nargs='+', default=[0])
+    parser.add_argument('--ID2s', help='ID of RX', nargs='+', default=[1])
     parser.add_argument('--prefix', help='prefix in results', default='')
     parser.add_argument('--max_timestamp_difference', help='Max difference between associated timestampes (t_gt - t_est)', default=0.03)
     parser.add_argument('--subsample', help='subsampling factor for input data (CSV)', default=0)
@@ -313,13 +316,18 @@ def main():
     parser.add_argument('--remove_outliers', action='store_true', default=False)
     parser.add_argument('--verbose', action='store_true', default=False)
     parser.add_argument('--max_range', help='range that classifies as outlier', default='30')
+    parser.add_argument('--max_angle', help='angle that classifies as outlier', default='6.4')
     parser.add_argument('--range_error_val', help='value assigned to outlier', default='0')
+    parser.add_argument('--angle_error_val', help='value assigned to outlier', default='0')
     parser.add_argument('--label_timestamp', help='timestamp label in CSV', default='t')
-    parser.add_argument('--label_range', help='range label in CSV', default='range_raw')
-    parser.add_argument('--label_ID1', help='ID1 label in CSV', default='UWB_ID1')
-    parser.add_argument('--label_ID2', help='ID2 label in CSV', default='UWB_ID2')
+    parser.add_argument('--label_range', help='range label in CSV', default='range')
+    parser.add_argument('--label_angle', help='range label in CSV', default='angle')
+    parser.add_argument('--label_ID1', help='ID1 label in CSV', default='ID1')
+    parser.add_argument('--label_ID2', help='ID2 label in CSV', default='ID2')
     parser.add_argument('--plot_timestamps', action='store_true', default=False)
     parser.add_argument('--plot_ranges', action='store_true', default=False)
+    parser.add_argument('--plot_angles', action='store_true', default=False)
+    parser.add_argument('--plot_err_poses', action='store_true', default=False)
     parser.add_argument('--plot_ranges_sorted', action='store_true', default=False)
     parser.add_argument('--plot_errors', action='store_true', default=False)
     parser.add_argument('--plot_histograms', action='store_true', default=False)
@@ -341,8 +349,8 @@ def main():
 
     eval = RelPoseMeasEvaluation(fn_gt=args.fn_gt,
                                  fn_est=args.fn_est,
-                                 ID1_arr=args.UWB_ID1s,
-                                 ID2_arr=args.UWB_ID2s,
+                                 ID1_arr=args.ID1s,
+                                 ID2_arr=args.ID2s,
                                  cfg=cfg,
                                  result_dir=args.result_dir,
                                  prefix=args.prefix,
@@ -351,9 +359,13 @@ def main():
                                  save_statistics=args.save_statistics,
                                  plot_timestamps=args.plot_timestamps,
                                  plot_ranges=args.plot_ranges,
+                                 plot_angles=args.plot_angles,
+                                 plot_pose_err=args.plot_err_poses,
                                  plot_ranges_sorted=args.plot_ranges_sorted,
                                  plot_range_error=args.plot_errors,
+                                 plot_angle_error=args.plot_errors,
                                  plot_range_histogram=args.plot_histograms,
+                                 plot_angle_histogram=args.plot_histograms,
                                  )
 
     print(" ")

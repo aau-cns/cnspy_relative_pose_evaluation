@@ -1,0 +1,11 @@
+info: RelPoseMeasEvaluation Statistics
+time: 07/23/2024, 12:09:18
+fn_gt: /home/jungr/workspace/CNS/py3_pkgs/cnspy_eco_system_test/pkgs/g_rel_pose_eval/test/test_results/two_spiral_2to3m/all-true-ranges.csv
+fn_est: /home/jungr/workspace/CNS/py3_pkgs/cnspy_eco_system_test/pkgs/g_rel_pose_eval/test/test_results/two_spiral_2to3m/all-meas-ranges.csv
+filter_histogram: true
+result_dir: /home/jungr/workspace/CNS/py3_pkgs/cnspy_eco_system_test/pkgs/g_rel_pose_eval/test/test_results/two_spiral_2to3m/eval/
+{ID1s: &id001 [0, 1], ID2s: *id001}
+--- {ID: 0, angle_constant_bias_table: {1: 2.11}, angle_noise_table: {1: 0.21}, range_constant_bias_table: {
+    1: -0.84}, range_noise_table: {1: 0.89}}
+--- {ID: 1, angle_constant_bias_table: {0: 2.09}, angle_noise_table: {0: 0.25}, range_constant_bias_table: {
+    0: -0.88}, range_noise_table: {0: 0.89}}

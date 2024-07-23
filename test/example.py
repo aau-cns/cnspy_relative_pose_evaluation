@@ -79,7 +79,7 @@ class EvaluationTrail:
                                            save_plot=True,
                                            show_plot=False,
                                            verbose=True,
-                                           ID_arr=[0,1,2])
+                                           ID_arr=[0,1])
 
 
 if __name__ == "__main__":
