@@ -57,6 +57,7 @@ class RelPoseMeasEvaluation:
                  plot_range_error =True,
                  plot_angle_error=True,
                  plot_range_histogram=True,
+                 plot_angle_histogram=True,
                  plot_pose_err=True,
                  verbose=False,
                  filter_histogram=True
@@ -130,8 +131,11 @@ class RelPoseMeasEvaluation:
                     fig_pe.suptitle('Pose Error of ID=' + str(ID1)  +" to " + str(ID2), fontsize=16)
                     fig_pe_dict[ID2] = fig_pe
             if plot_range_histogram:
-                fig_h = plt.figure(figsize=(20, 15), dpi=int(200))
-                fig_h.suptitle('Histograms of ID=' + str(ID1), fontsize=16)
+                fig_hr = plt.figure(figsize=(20, 15), dpi=int(200))
+                fig_hr.suptitle('Range Error Histograms of ID=' + str(ID1), fontsize=16)
+            if plot_angle_histogram:
+                fig_ha = plt.figure(figsize=(20, 15), dpi=int(200))
+                fig_ha.suptitle('Angle Error Histograms of ID=' + str(ID1), fontsize=16)
             if save_statistics:
                 dict_statistics_i = {'ID' : ID1, 'contant_bias_table' : dict(), 'noise_table' : dict()}
                 pass
@@ -191,15 +195,20 @@ class RelPoseMeasEvaluation:
                                                                         cfg_title=cfg_title)
                     cnspy_numpy_utils.numpy_statistics.print_statistics(stat, desc=cfg_title + " error")
                 if plot_range_histogram:
-                    ax_h = fig_h.add_subplot(n_rows, n_cols, idx)
-                    [fig_, ax_, stat, r_vec_err_] = assoc.plot_error_histogram(fig=fig_h,
-                                                                                ax=ax_h,
-                                                                                max_error=50,
-                                                                                filter_histogramm=filter_histogram)
+                    ax_hr = fig_hr.add_subplot(n_rows, n_cols, idx)
+                    [fig_, ax_, stat, r_vec_err_] = assoc.plot_range_error_histogram(fig=fig_hr,
+                                                                                     ax=ax_hr,
+                                                                                     max_error=cfg.max_range_error,
+                                                                                     filter_histogramm=filter_histogram)
                     if stat is not None:
                         dict_statistics_i['contant_bias_table'][ID2] = round(float(stat['mean']),2)
                         dict_statistics_i['noise_table'][ID2] = round(float(stat['std']),2)
-
+                if plot_angle_histogram:
+                    ax_ha = fig_ha.add_subplot(n_rows, n_cols, idx)
+                    [fig_, ax_, stat, r_vec_err_] = assoc.plot_angle_error_histogram(fig=fig_ha,
+                                                                                     ax=ax_ha,
+                                                                                     max_error=10,
+                                                                                     filter_histogramm=filter_histogram)
                 # the histogram of the date
                 idx += 1
 
@@ -260,10 +269,16 @@ class RelPoseMeasEvaluation:
                                                      save_fn=str("Angle_Errors_ID" + str(ID1)),
                                                      show=show_plot, close_figure=not show_plot)
             if plot_range_histogram:
-                fig_h.tight_layout()
+                fig_hr.tight_layout()
                 if save_plot:
-                    AssociateRelPoses.show_save_figure(fig=fig_h, result_dir=result_dir,
-                                                     save_fn=str("Histograms_ID" + str(ID1)),
+                    AssociateRelPoses.show_save_figure(fig=fig_hr, result_dir=result_dir,
+                                                     save_fn=str("Range_Error_Histograms_ID" + str(ID1)),
+                                                     show=show_plot, close_figure=not show_plot)
+            if plot_angle_histogram:
+                fig_ha.tight_layout()
+                if save_plot:
+                    AssociateRelPoses.show_save_figure(fig=fig_ha, result_dir=result_dir,
+                                                     save_fn=str("Angle_Error_Histograms_ID" + str(ID1)),
                                                      show=show_plot, close_figure=not show_plot)
 
             if save_statistics:

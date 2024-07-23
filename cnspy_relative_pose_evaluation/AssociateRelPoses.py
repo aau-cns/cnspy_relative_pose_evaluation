@@ -49,6 +49,8 @@ from cnspy_spatial_csv_formats.CSVSpatialFormat import  CSVSpatialFormat
 
 class AssociateRelPoseCfg(AssociateRangesCfg):
     label_angle = 'angle'
+    max_angle = np.pi*2
+    angle_error_val = 0
 
     def __init__(self, ID1=None, ID2=None, relative_timestamps=False,
                  max_difference=0.02, subsample=0, verbose=False, remove_outliers=False,
@@ -220,6 +222,8 @@ class AssociateRelPoses(AssociateRanges):
         self.traj_err = AbsoluteTrajectoryError.compute_trajectory_error(traj_est=self.traj_est,traj_gt=traj_gt, traj_err_type=TrajectoryErrorType(EstimationErrorType.type1))
 
     def plot_traj_err(self, cfg=TrajectoryPlotConfig(), fig=None):
+        if not self.data_loaded:
+            return
 
         fig, ax1, ax2, ax3, ax4 = TrajectoryError.plot_pose_err(traj_est=self.traj_est, traj_err=self.traj_err,
                                                                 cfg=cfg, fig=fig,
@@ -253,7 +257,7 @@ class AssociateRelPoses(AssociateRanges):
         assert(cols1 == 4 and cols2 ==4)
         assert(rows1 == rows2)
 
-        ang_arr = np.zeros([rows1, 1])
+        ang_arr = np.zeros([rows1])
         for idx in range(0, rows1):
             ang_arr[idx] = myfunction(q_arr1[idx, :], q_arr2[idx, :])
         return ang_arr
@@ -321,8 +325,8 @@ class AssociateRelPoses(AssociateRanges):
             t_vec_est = self.data_frame_est_matched[[self.cfg.label_timestamp]].to_numpy()
 
         if version_info[0] < 3:
-            r_vec_gt = self.data_frame_gt_matched.as_matrix([self.cfg.label_angle])
-            r_vec_est = self.data_frame_est_matched.as_matrix([self.cfg.label_angle])
+            r_vec_gt = self.data_frame_gt_matched.as_matrix([['qw','qx', 'qy', 'qz']])
+            r_vec_est = self.data_frame_est_matched.as_matrix([['qw','qx', 'qy', 'qz']])
         else:
             r_vec_gt = self.data_frame_gt_matched[['qw','qx', 'qy', 'qz']].to_numpy()
             r_vec_est = self.data_frame_est_matched[['qw','qx', 'qy', 'qz']].to_numpy()
@@ -333,9 +337,9 @@ class AssociateRelPoses(AssociateRanges):
             t_vec = t_vec_gt
             if remove_outlier:
                 if not self.cfg.remove_outliers:
-                    indices = np.nonzero((r_vec_est == self.cfg.range_error_val))
+                    indices = np.nonzero((r_vec_est == self.cfg.angle_error_val))
                 else:
-                    indices = np.nonzero((abs(r_vec_est) > self.cfg.max_range))
+                    indices = np.nonzero((abs(r_vec_est) > self.cfg.max_angle))
 
                 t_vec = np.delete(t_vec, indices, axis=0, )
                 r_vec_err = np.delete(r_vec_err, indices, axis=0)
@@ -349,12 +353,13 @@ class AssociateRelPoses(AssociateRanges):
         else:
             # if r_est = r_true + r_err, then  r_err is an offset or the constant bias (gamma).
             r_vec_err = AssociateRelPoses.quats2ang_arr(r_vec_est, r_vec_gt)
-            x_arr = r_vec_gt
+            x_arr = self.data_frame_gt_matched[self.cfg.label_angle].to_numpy()
+            angle_est_arr = self.data_frame_est_matched[self.cfg.label_angle].to_numpy()
             if remove_outlier:
                 if not self.cfg.remove_outliers and not max_error:
-                    indices = np.nonzero((r_vec_est == self.cfg.range_error_val))
+                    indices = np.nonzero((angle_est_arr == self.cfg.angle_error_val))
                 else:
-                    indices = np.nonzero((abs(r_vec_est) > self.cfg.max_range))
+                    indices = np.nonzero((abs(angle_est_arr) > self.cfg.max_angle))
 
                 x_arr = np.delete(x_arr, indices, axis=0, )
                 r_vec_err = np.delete(r_vec_err, indices, axis=0)
@@ -405,3 +410,75 @@ class AssociateRelPoses(AssociateRanges):
         ax.legend()
         stat = numpy_statistics(vNumpy=np.squeeze(np.asarray(r_vec_err)))
         return fig, ax, stat, r_vec_err
+
+
+
+    def plot_angle_error_histogram(self, cfg_dpi=200, fig=None, ax=None,
+                                   save_fn="", result_dir=".", max_error=None, filter_histogramm=False, perc_inliers = 0.3):
+        if not self.data_loaded:
+            return fig, ax, None, None
+
+        if fig is None:
+            fig = plt.figure(figsize=(20, 15), dpi=int(cfg_dpi))
+        if ax is None:
+            ax = fig.add_subplot(111)
+
+        [t_vec, r_vec_err] = self.compute_angle_error(sort=True, remove_outlier=True, max_error=max_error)
+        num_bins = 50
+        n, bins, patches = ax.hist(r_vec_err, num_bins, density=True, color='red', alpha=0.75, label='Histogram')
+
+        if len(t_vec) == 0 or len(r_vec_err) == 0:
+            return fig, ax, None, None
+
+        if not filter_histogramm:
+            # add a 'best fit' line
+            stat = numpy_statistics(vNumpy=np.squeeze(np.asarray(r_vec_err)))
+            sigma = stat['std']
+            mu = stat['mean']
+            y = ((1 / (np.sqrt(2 * np.pi) * sigma)) *
+                 np.exp(-0.5 * (1 / sigma * (bins - mu)) ** 2))
+
+            scaling = len(r_vec_err)/num_bins
+            ax.plot(bins, y*scaling, '--', color='blue', alpha=0.75, label='PDF')
+            ax.set_ylabel('num. samples normalized')
+            ax.set_xlabel('error [m]')
+            ax.set_title(r'Angle Error Histogram ' + str(self.cfg.ID1) + '-' + str(self.cfg.ID2) + ': $\mu$=' + str(round(mu, 3)) + ', $\sigma$=' + str(round(sigma, 3)))
+            ax.legend()
+            return fig, ax, stat, r_vec_err
+        else:
+            idx_n_sorted = np.argsort(n)
+
+            # assuming a certain percentage as inliers:
+            num_best_bins = int(num_bins*(0.5*perc_inliers))
+
+            # compute the mean about the most frequent values:
+            idx_best_bins = idx_n_sorted[-num_best_bins:]
+            best_error_vals = bins[idx_best_bins]
+            mean_best_errors = np.mean(best_error_vals, axis=0)
+
+            # compute a boundary to remove outliers:
+            min_offset_errors = mean_best_errors - np.min(best_error_vals, axis=0)
+            max_offset_errors = np.max(best_error_vals, axis=0) - mean_best_errors
+            print('mean_best_errors %f' % mean_best_errors)
+
+            # remove outliers
+            r_filtered_err = r_vec_err[(r_vec_err > (mean_best_errors - min_offset_errors*2.0)) &
+                                       (r_vec_err < (mean_best_errors + 2.0*max_offset_errors))]
+
+            # add a 'best fit' line
+            stat = numpy_statistics(vNumpy=np.squeeze(np.asarray(r_filtered_err)))
+            num_plot_bins = int(num_bins*(perc_inliers))
+            n_, bins_, patches_ = ax.hist(r_filtered_err, num_plot_bins, density=True, color='blue', alpha=0.75, label='Histogram (filtered)')
+            sigma = stat['std']
+            mu = stat['mean']
+            scaling = 1.0; #len(r_filtered_err)/num_plot_bins
+            y = ((1 / (np.sqrt(2 * np.pi) * sigma)) *
+                 np.exp(-0.5 * (1 / sigma * (bins_ - mu)) ** 2))
+            ax.plot(bins_, y*scaling, '--', color='green', label='PDF (filtered)')
+            ax.set_ylabel('num. samples normalized')
+            ax.set_xlabel('error [m]')
+            ax.set_title(r'Angle Error Histogram (filtered) ' + str(self.cfg.ID1) + '-' + str(self.cfg.ID2) + ': $\mu$=' + str(round(mu, 3)) + ', $\sigma$=' + str(round(sigma, 3)))
+            ax.legend()
+            return fig, ax, stat, r_filtered_err
+        pass
+

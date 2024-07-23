@@ -132,13 +132,13 @@ class RelPoseMeasEvaluationTool:
                                  subsample=0,
                                  verbose=True,
                                  remove_outliers=False,
-                                 max_range=30,
+                                 max_range=9,
                                  range_error_val=0,
                                  label_timestamp='t',
                                  label_ID1='ID1',
                                  label_ID2='ID2',
                                  label_range='range')
-
+        cfg.max_range_error = 9
 
         eval = RelPoseMeasEvaluation(fn_gt=fn_gt_ranges,
                                      fn_est=fn_meas_ranges,
@@ -156,7 +156,8 @@ class RelPoseMeasEvaluationTool:
                                      plot_ranges_sorted=False,
                                      plot_range_error=False,
                                      plot_angle_error=False,
-                                     plot_range_histogram=False,
+                                     plot_range_histogram=True,
+                                     plot_angle_histogram=True,
                                      filter_histogram=False,
                                      verbose=verbose
                                      )

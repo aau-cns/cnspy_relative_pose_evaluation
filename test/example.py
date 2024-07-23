@@ -70,6 +70,7 @@ class EvaluationTrail:
     @staticmethod
     def test_RelPoseEval():
         sequence = 'two_spiral_2to3m'
+        #sequence = 'static_test'
         bagfile_in = str(SAMPLE_DATA_DIR + '/' + sequence + '.bag')
         cfg_file = str(SAMPLE_DATA_DIR + '/config.yaml')
         RelPoseMeasEvaluationTool.evaluate(bagfile_in=bagfile_in,
@@ -78,7 +79,7 @@ class EvaluationTrail:
                                            save_plot=True,
                                            show_plot=False,
                                            verbose=True,
-                                           ID_arr=[0,1])
+                                           ID_arr=[0,1,2])
 
 
 if __name__ == "__main__":
