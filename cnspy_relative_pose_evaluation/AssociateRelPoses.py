@@ -414,7 +414,8 @@ class AssociateRelPoses(AssociateRanges):
 
 
     def plot_angle_error_histogram(self, cfg_dpi=200, fig=None, ax=None,
-                                   save_fn="", result_dir=".", max_error=None, filter_histogramm=False, perc_inliers = 0.3):
+                                   save_fn="", result_dir=".", max_error=None, filter_histogramm=False, perc_inliers = 0.3,
+                                   ID1=None, ID2=None):
         if not self.data_loaded:
             return fig, ax, None, None
 
@@ -441,8 +442,8 @@ class AssociateRelPoses(AssociateRanges):
             scaling = len(r_vec_err)/num_bins
             ax.plot(bins, y*scaling, '--', color='blue', alpha=0.75, label='PDF')
             ax.set_ylabel('num. samples normalized')
-            ax.set_xlabel('error [m]')
-            ax.set_title(r'Angle Error Histogram ' + str(self.cfg.ID1) + '-' + str(self.cfg.ID2) + ': $\mu$=' + str(round(mu, 3)) + ', $\sigma$=' + str(round(sigma, 3)))
+            ax.set_xlabel('error [rad]')
+            ax.set_title(r'Angle Error Histogram ID' + str(ID1) + '-ID' + str(ID2) + ': $\mu$=' + str(round(mu, 3)) + ', $\sigma$=' + str(round(sigma, 3)))
             ax.legend()
             return fig, ax, stat, r_vec_err
         else:
@@ -476,8 +477,8 @@ class AssociateRelPoses(AssociateRanges):
                  np.exp(-0.5 * (1 / sigma * (bins_ - mu)) ** 2))
             ax.plot(bins_, y*scaling, '--', color='green', label='PDF (filtered)')
             ax.set_ylabel('num. samples normalized')
-            ax.set_xlabel('error [m]')
-            ax.set_title(r'Angle Error Histogram (filtered) ' + str(self.cfg.ID1) + '-' + str(self.cfg.ID2) + ': $\mu$=' + str(round(mu, 3)) + ', $\sigma$=' + str(round(sigma, 3)))
+            ax.set_xlabel('error [rad]')
+            ax.set_title(r'Angle Error Histogram (filtered) ID' + str(ID1) + '-ID' + str(ID2) + ': $\mu$=' + str(round(mu, 3)) + ', $\sigma$=' + str(round(sigma, 3)))
             ax.legend()
             return fig, ax, stat, r_filtered_err
         pass

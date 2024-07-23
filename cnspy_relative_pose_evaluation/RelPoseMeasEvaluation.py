@@ -199,7 +199,8 @@ class RelPoseMeasEvaluation:
                     [fig_, ax_, stat, r_vec_err_] = assoc.plot_range_error_histogram(fig=fig_hr,
                                                                                      ax=ax_hr,
                                                                                      max_error=cfg.max_range_error,
-                                                                                     filter_histogramm=filter_histogram)
+                                                                                     filter_histogramm=filter_histogram,
+                                                                                     ID1=ID1, ID2=ID2)
                     if stat is not None:
                         dict_statistics_i['range_constant_bias_table'][ID2] = round(float(stat['mean']),2)
                         dict_statistics_i['range_noise_table'][ID2] = round(float(stat['std']),2)
@@ -208,7 +209,8 @@ class RelPoseMeasEvaluation:
                     [fig_, ax_, stat, r_vec_err_] = assoc.plot_angle_error_histogram(fig=fig_ha,
                                                                                      ax=ax_ha,
                                                                                      max_error=10,
-                                                                                     filter_histogramm=filter_histogram)
+                                                                                     filter_histogramm=filter_histogram,
+                                                                                     ID1=ID1, ID2=ID2)
                     if stat is not None:
                         dict_statistics_i['angle_constant_bias_table'][ID2] = round(float(stat['mean']),2)
                         dict_statistics_i['angle_noise_table'][ID2] = round(float(stat['std']),2)
