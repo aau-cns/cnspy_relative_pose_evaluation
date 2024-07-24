@@ -72,20 +72,34 @@ class EvaluationTrail:
         sequence = 'two_spiral_2to3m'
         sequence = 'static_test'
         bagfile_in = str(SAMPLE_DATA_DIR + '/' + sequence + '.bag')
-        cfg_file = str(SAMPLE_DATA_DIR + '/config.yaml')
+
+        cfg_file = str(SAMPLE_DATA_DIR + '/config_gazebo.yaml')
         RelPoseMeasEvaluationTool.evaluate(bagfile_in=bagfile_in,
                                            cfg=cfg_file,
                                            result_dir=RES_DATA_DIR + "/" + sequence,
                                            save_plot=True,
                                            show_plot=False,
                                            verbose=True,
-                                           ID_arr=[0,1,2])
+                                           ID_arr=[1,2])
+
+    @staticmethod
+    def test_RelPoseEval_gazebo():
+        sequence = "dataset_octagon_looped_merged"
+        bagfile_in = str("/home/jungr/workspace/catkin_ws/test_uvdar/src/aau/scripts/simulation/dataset_octagon_looped_merged_2024-06-18-16-48-58.bag")
+
+        cfg_file = str(SAMPLE_DATA_DIR + '/config_gazebo.yaml')
+        RelPoseMeasEvaluationTool.evaluate(bagfile_in=bagfile_in,
+                                           cfg=cfg_file,
+                                           result_dir=RES_DATA_DIR + "/" + sequence,
+                                           save_plot=True,
+                                           show_plot=False,
+                                           verbose=True,
+                                           ID_arr=[1,2])
 
 
 if __name__ == "__main__":
      #EvaluationTrail.test_ROSBag_Poses2RelPose()
      #EvaluationTrail.test_ROSBag_TrueRelPoses()
      #EvaluationTrail.test_RelPose_ROSbag2CSV()
-
      EvaluationTrail.test_RelPoseEval()
 

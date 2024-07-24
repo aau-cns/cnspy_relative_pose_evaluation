@@ -1,0 +1,7 @@
+# relative pose of the moving sensors
+sensor_positions: {1:[0, 0, 0], 2:[0, 0, 0]}
+sensor_orientations: {1:[1.0, 0, 0, 0], 2:[1.0, 0, 0, 0]}
+# true pose of the body
+sensor_topics: {1: "/uav1/ground_truth", 2: "/uav2/ground_truth"}
+# topcis of the relative pose measurement
+relpose_topics: {1: "/uav1/data_handler/uvdar_fcu", 2: "/uav2/data_handler/uvdar_fcu"}

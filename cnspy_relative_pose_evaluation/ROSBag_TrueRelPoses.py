@@ -218,7 +218,15 @@ class ROSBag_TrueRelPoses:
             for topic, msg, t in tqdm(bag.read_messages(), total=num_messages, unit="msgs"):
                 if topic in dict_cfg["sensor_topics"].values():
                     T_GLOBAL_BODY = None
-                    if hasattr(msg, 'header') and hasattr(msg, 'pose'):  # POSE_STAMPED
+                    if hasattr(msg, 'header') and hasattr(msg, 'pose') and hasattr(msg, 'twist'):  # nav_msgs/Odometry Message
+                        p = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z])
+                        q_GB = [msg.pose.pose.orientation.w, msg.pose.pose.orientation.x, msg.pose.pose.orientation.y,
+                                msg.pose.pose.orientation.z]
+
+                        q = UnitQuaternion(q_GB).unit()
+                        T_GLOBAL_BODY = SE3.Rt(q.R, p, check=True)
+                        pass
+                    elif hasattr(msg, 'header') and hasattr(msg, 'pose'):  # POSE_STAMPED
                         p = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
                         q_GB = [msg.pose.orientation.w, msg.pose.orientation.x, msg.pose.orientation.y,
                                 msg.pose.orientation.z]
