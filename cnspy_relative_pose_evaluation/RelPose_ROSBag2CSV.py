@@ -43,7 +43,7 @@ class RelPose_ROSBag2CSV:
     # extract
     #
     @staticmethod
-    def extract(bagfile_name, cfg, result_dir=None, fn_list=[], verbose=False
+    def extract(bagfile_name, cfg, result_dir=None, fn_list=[], verbose=False, with_cov=False
                 ):
         if not os.path.isfile(bagfile_name):
             print("RelPose_ROSBag2CSV: could not find file: %s" % bagfile_name)
@@ -170,28 +170,13 @@ class RelPose_ROSBag2CSV:
                     file_writer = dict_file_writers[topic]
 
                     if not dict_header_written[topic]:
-                        file_writer.writerow(["t", "ID1", "ID2", "tx", "ty", "tz", "qw", "qx", "qy", "qz", "range", "angle"])
+                        file_writer.writerow(RelPose_ROSBag2CSV.get_header(with_cov))
                         dict_header_written[topic] = True
 
                     ID1 = get_key_from_value(dict_cfg["relpose_topics"], topic)
                     timestamp = msg.header.stamp.to_sec()
                     for pose_id in msg.poses:
-                        ID2 = pose_id.id
-                        # HINT: conversions:
-                        range = LA.norm([pose_id.pose.position.x, pose_id.pose.position.y, pose_id.pose.position.z])
-                        q = UnitQuaternion([pose_id.pose.orientation.w, pose_id.pose.orientation.x, pose_id.pose.orientation.y, pose_id.pose.orientation.z], norm=True)
-                        [ang, vec] = q.angvec()
-
-                        content = ["%f" % timestamp, str(ID1), str(ID2),
-                                   str(round(pose_id.pose.position.x, round_decimals)),
-                                   str(round(pose_id.pose.position.y, round_decimals)),
-                                   str(round(pose_id.pose.position.z, round_decimals)),
-                                   str(round(pose_id.pose.orientation.w, round_decimals)),
-                                   str(round(pose_id.pose.orientation.x, round_decimals)),
-                                   str(round(pose_id.pose.orientation.y, round_decimals)),
-                                   str(round(pose_id.pose.orientation.z, round_decimals)),
-                                   str(round(range, round_decimals)),
-                                   str(round(ang, round_decimals))]
+                        content = RelPose_ROSBag2CSV.to_csv_line(timestamp, ID1, pose_id, round_decimals, with_cov)
                         file_writer.writerow(content)
                         cnt += 1
 
@@ -220,7 +205,7 @@ class RelPose_ROSBag2CSV:
     # extract_to_one
     #
     @staticmethod
-    def extract_to_one(bagfile_name, cfg, fn, result_dir="", ext="csv", verbose=False ):
+    def extract_to_one(bagfile_name, cfg, fn, result_dir="", ext="csv", verbose=False, with_cov=False ):
         if not os.path.isfile(bagfile_name):
             print("RelPose_ROSBag2CSV: could not find file: %s" % bagfile_name)
             return False
@@ -308,7 +293,7 @@ class RelPose_ROSBag2CSV:
 
         csvfile = open(filename, 'w+')
         file_writer = csv.writer(csvfile, delimiter=',', lineterminator='\n')
-        file_writer.writerow(["t", "ID1", "ID2", "tx", "ty", "tz", "qw", "qx", "qy", "qz", "range", "angle"])
+        file_writer.writerow(RelPose_ROSBag2CSV.get_header(with_cov))
 
         ## check if desired topics are in the bag file:
         num_messages = info_dict['messages']
@@ -336,24 +321,7 @@ class RelPose_ROSBag2CSV:
                     ID1 = get_key_from_value(dict_cfg["relpose_topics"], topic)
                     timestamp = msg.header.stamp.to_sec()
                     for pose_id in msg.poses:
-                        ID2 = pose_id.id
-                        # HINT: conversions:
-                        range = LA.norm([pose_id.pose.position.x, pose_id.pose.position.y, pose_id.pose.position.z])
-                        q = UnitQuaternion(
-                            [pose_id.pose.orientation.w, pose_id.pose.orientation.x, pose_id.pose.orientation.y,
-                             pose_id.pose.orientation.z], norm=True).unit()
-                        [ang, vec] = q.angvec()
-
-                        content = ["%f" % timestamp, str(ID1), str(ID2),
-                                   str(round(pose_id.pose.position.x, round_decimals)),
-                                   str(round(pose_id.pose.position.y, round_decimals)),
-                                   str(round(pose_id.pose.position.z, round_decimals)),
-                                   str(round(pose_id.pose.orientation.w, round_decimals)),
-                                   str(round(pose_id.pose.orientation.x, round_decimals)),
-                                   str(round(pose_id.pose.orientation.y, round_decimals)),
-                                   str(round(pose_id.pose.orientation.z, round_decimals)),
-                                   str(round(range, round_decimals)),
-                                   str(round(ang, round_decimals))]
+                        content = RelPose_ROSBag2CSV.to_csv_line(timestamp, ID1, pose_id, round_decimals, with_cov)
                         file_writer.writerow(content)
                         cnt += 1
 
@@ -367,6 +335,43 @@ class RelPose_ROSBag2CSV:
         bag.close()
         return True
 
+    @staticmethod
+    def get_header(with_cov=False):
+        if with_cov:
+            return ["t", "ID1", "ID2", "tx", "ty", "tz", "qw", "qx", "qy", "qz", "range", "angle", 'pxx', 'pxy', 'pxz', 'pyy', 'pyz', 'pzz', 'qrr',
+                    'qrp', 'qry', 'qpp', 'qpy', 'qyy']
+        else:
+            return ["t", "ID1", "ID2", "tx", "ty", "tz", "qw", "qx", "qy", "qz", "range", "angle"]
+
+    @staticmethod
+    def to_csv_line(timestamp, ID1, pose_id, round_decimals = 4, with_cov=False):
+        range = LA.norm([pose_id.pose.position.x, pose_id.pose.position.y, pose_id.pose.position.z])
+        q = UnitQuaternion(
+            [pose_id.pose.orientation.w, pose_id.pose.orientation.x, pose_id.pose.orientation.y,
+             pose_id.pose.orientation.z], norm=True).unit()
+        [ang, vec] = q.angvec()
+        ID2 = pose_id.id
+
+        content = ["%f" % timestamp, str(ID1), str(ID2),
+                   str(round(pose_id.pose.position.x, round_decimals)),
+                   str(round(pose_id.pose.position.y, round_decimals)),
+                   str(round(pose_id.pose.position.z, round_decimals)),
+                   str(round(pose_id.pose.orientation.w, round_decimals)),
+                   str(round(pose_id.pose.orientation.x, round_decimals)),
+                   str(round(pose_id.pose.orientation.y, round_decimals)),
+                   str(round(pose_id.pose.orientation.z, round_decimals)),
+                   str(round(range, round_decimals)),
+                   str(round(ang, round_decimals))]
+        if with_cov:
+            P = pose_id.covariance
+            cov_tri_up = [P[0], P[1], P[2], P[7], P[8], P[14], P[21], P[22], P[23], P[28], P[29], P[35]]
+            cov = []
+            for i in cov_tri_up:
+                cov.append(str(round(i, round_decimals)))
+            content.extend(cov)
+
+        return content
+
 def main():
     # test3: python3 TWR_ROSbag2CS.py --bagfile ../test/example.bag --topics /a01/ranging /a02/ranging--verbose --filenames ranges.csv
     parser = argparse.ArgumentParser(
@@ -377,7 +382,7 @@ def main():
     parser.add_argument('--result_dir', help='directory to store results [otherwise bagfile name will be a directory]',
                         default='')
     parser.add_argument('--verbose', action='store_true', default=False)
-
+    parser.add_argument('--with_cov', action='store_true', default=False)
     tp_start = time.time()
     args = parser.parse_args()
 
@@ -386,7 +391,8 @@ def main():
                                  cfg=args.cfg,
                                  fn_list=args.filenames,
                                  result_dir=args.result_dir,
-                                 verbose=args.verbose)
+                                 verbose=args.verbose,
+                                 with_cov=args.with_cov)
 
     if res:
         print(" ")

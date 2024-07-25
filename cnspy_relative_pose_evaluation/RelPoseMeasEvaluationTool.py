@@ -99,7 +99,8 @@ class RelPoseMeasEvaluationTool:
                                                 cfg=cfg,
                                                 fn=fn_meas_ranges,
                                                 result_dir=result_dir,
-                                                verbose=verbose)
+                                                verbose=verbose,
+                                                with_cov=True)
 
 
 

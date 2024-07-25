@@ -28,6 +28,7 @@ import numpy as np
 import pandas as pandas
 from spatialmath import UnitQuaternion
 
+from cnspy_csv2dataframe.PosOrientWithCov2DataFrame import PosOrientWithCov2DataFrame
 from cnspy_numpy_utils.numpy_statistics import *
 from cnspy_timestamp_association.TimestampAssociation import TimestampAssociation
 from cnspy_trajectory.PlotLineStyle import PlotLineStyle
@@ -213,11 +214,13 @@ class AssociateRelPoses(AssociateRanges):
             return None
         assert version_info[0] >= 3, "Unsupported dataframe version..."
 
+        Sigma_p_vec, Sigma_R_vec = PosOrientWithCov2DataFrame.cov_from_DataFrame(self.data_frame_est_matched)
         # Note: Trajectory uses the weired HTMQ quaternion conventions, with real part last...
         self.traj_est = TrajectoryEstimated(t_vec = self.data_frame_est_matched['t'].to_numpy(),
                                        p_vec=self.data_frame_est_matched[['tx', 'ty', 'tz']].to_numpy(),
-                                       q_vec=self.data_frame_est_matched[[ 'qx', 'qy', 'qz', 'qw']].to_numpy())
-        est_fmt = CSVSpatialFormat(fmt_type=CSVSpatialFormatType.PoseStamped,
+                                       q_vec=self.data_frame_est_matched[[ 'qx', 'qy', 'qz', 'qw']].to_numpy(),
+                                            Sigma_p_vec=Sigma_p_vec, Sigma_R_vec=Sigma_R_vec)
+        est_fmt = CSVSpatialFormat(fmt_type=CSVSpatialFormatType.PosOrientWithCov,
                                    est_err_type=EstimationErrorType.type1,
                                    err_rep_type=ErrorRepresentationType.rpy_rad)
         self.traj_est.set_format(est_fmt)
@@ -235,6 +238,12 @@ class AssociateRelPoses(AssociateRanges):
         fig, ax1, ax2, ax3, ax4 = TrajectoryError.plot_pose_err(traj_est=self.traj_est, traj_err=self.traj_err,
                                                                 cfg=cfg, fig=fig,
                                                                 angles=True, plot_rpy=True)
+
+        if self.traj_est.Sigma_R_vec is not None:
+            self.traj_est.ax_plot_p_sigma(ax2, cfg=cfg, colors=['darkred', 'darkgreen', 'darkblue'],
+                                          ls=PlotLineStyle(linewidth=0.5, linestyle='-.'))
+            self.traj_est.ax_plot_rpy_sigma(ax4, cfg=cfg, colors=['darkred', 'darkgreen', 'darkblue'],
+                                            ls=PlotLineStyle(linewidth=0.5, linestyle='-.'))
 
         return fig, ax1, ax2, ax3, ax4
 
