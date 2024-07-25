@@ -89,10 +89,12 @@ class AssociateRelPoses(AssociateRanges):
 
     traj_err = None # TrajectoryEstimationError()
     traj_est = None
+    traj_gt = None
 
     def __init__(self, fn_gt, fn_est, cfg):
+        assert (isinstance(cfg, AssociateRelPoseCfg))
         #AssociateRanges.__init__(self)
-        cfg = cfg
+        self.cfg = cfg
         self.load(fn_gt, fn_est, cfg)
         self.compute_error()
 
@@ -133,17 +135,22 @@ class AssociateRelPoses(AssociateRanges):
             self.csv_df_gt[cfg.label_angle] = AssociateRelPoses.quat2ang_arr(self.csv_df_gt[['qw','qx', 'qy', 'qz']].to_numpy())
 
         if cfg.remove_outliers:
-            self.csv_df_est[cfg.label_range] = self.csv_df_est[cfg.label_range].where(
-                abs(self.csv_df_est[cfg.label_range]) < 0, other=cfg.range_error_val)
-            self.csv_df_est[cfg.label_range] = self.csv_df_est[cfg.label_range].where(
-                self.csv_df_est[cfg.label_range] > cfg.max_range, other=cfg.range_error_val)
-
+            indices1 = np.nonzero(self.csv_df_est[cfg.label_range] < cfg.max_range)
+            indices2 = np.nonzero(self.csv_df_est[cfg.label_range] > 0)
+            indices3 = np.nonzero(abs(self.csv_df_est[cfg.label_angle]) < cfg.max_angle)
+            idc = np.intersect1d(np.intersect1d(indices1, indices2), indices3)
+            num_outliers = len(self.csv_df_est.index) - len(idc)
+            perc = 100.0*(num_outliers/max(1, len(self.csv_df_est.index)))
+            if num_outliers:
+                self.csv_df_est = AssociateRanges.sample_DataFrame(self.csv_df_est, idc)
+                print('AssociateRelPoses.load(): [%d] outliers (%.1f %%) removed!' % (num_outliers, perc))
         else:
             indices = ((self.csv_df_est[cfg.label_range]) < 0)
             self.csv_df_est.loc[indices, cfg.label_range] = cfg.range_error_val
             indices = (self.csv_df_est[cfg.label_range] > cfg.max_range)
             self.csv_df_est.loc[indices, cfg.label_range] = cfg.range_error_val
-
+            indices = (self.csv_df_est[cfg.label_angle] > cfg.max_angle)
+            self.csv_df_est.loc[indices, cfg.label_angle] = cfg.angle_error_val
         if cfg.subsample > 1:
             subsample = round(cfg.subsample, 0)
             self.csv_df_gt = AssociateRanges.subsample_DataFrame(df=self.csv_df_gt, step=subsample, verbose=cfg.verbose)
@@ -214,18 +221,28 @@ class AssociateRelPoses(AssociateRanges):
                                    est_err_type=EstimationErrorType.type1,
                                    err_rep_type=ErrorRepresentationType.rpy_rad)
         self.traj_est.set_format(est_fmt)
-        traj_gt = Trajectory(t_vec = self.data_frame_gt_matched['t'].to_numpy(),
+        self.traj_gt = Trajectory(t_vec = self.data_frame_gt_matched['t'].to_numpy(),
                                        p_vec=self.data_frame_gt_matched[['tx', 'ty', 'tz']].to_numpy(),
                                        q_vec=self.data_frame_gt_matched[['qx', 'qy', 'qz', 'qw']].to_numpy())
 
 
-        self.traj_err = AbsoluteTrajectoryError.compute_trajectory_error(traj_est=self.traj_est,traj_gt=traj_gt, traj_err_type=TrajectoryErrorType(EstimationErrorType.type1))
+        self.traj_err = AbsoluteTrajectoryError.compute_trajectory_error(traj_est=self.traj_est,traj_gt=self.traj_gt, traj_err_type=TrajectoryErrorType(EstimationErrorType.type1))
 
     def plot_traj_err(self, cfg=TrajectoryPlotConfig(), fig=None):
         if not self.data_loaded:
             return
 
         fig, ax1, ax2, ax3, ax4 = TrajectoryError.plot_pose_err(traj_est=self.traj_est, traj_err=self.traj_err,
+                                                                cfg=cfg, fig=fig,
+                                                                angles=True, plot_rpy=True)
+
+        return fig, ax1, ax2, ax3, ax4
+
+    def plot_traj(self, cfg=TrajectoryPlotConfig(), fig=None):
+        if not self.data_loaded:
+            return
+
+        fig, ax1, ax2, ax3, ax4 = TrajectoryError.plot_pose(traj_est=self.traj_est, traj_gt=self.traj_gt,
                                                                 cfg=cfg, fig=fig,
                                                                 angles=True, plot_rpy=True)
 
@@ -335,41 +352,22 @@ class AssociateRelPoses(AssociateRanges):
             # if r_est = r_true + r_err, then  r_err is an offset or the constant bias (gamma).
             r_vec_err = AssociateRelPoses.quats2ang_arr(r_vec_est, r_vec_gt)
             t_vec = t_vec_gt
-            if remove_outlier:
-                if not self.cfg.remove_outliers:
-                    indices = np.nonzero((r_vec_est == self.cfg.angle_error_val))
-                else:
-                    indices = np.nonzero((abs(r_vec_est) > self.cfg.max_angle))
-
+            if max_error:
+                indices = np.nonzero((abs(r_vec_err) > max_error))
                 t_vec = np.delete(t_vec, indices, axis=0, )
                 r_vec_err = np.delete(r_vec_err, indices, axis=0)
 
-                if max_error:
-                    indices = np.nonzero((abs(r_vec_err) > max_error))
-                    t_vec = np.delete(t_vec, indices, axis=0, )
-                    r_vec_err = np.delete(r_vec_err, indices, axis=0)
-
-                return [t_vec, r_vec_err]
+            return [t_vec, r_vec_err]
         else:
             # if r_est = r_true + r_err, then  r_err is an offset or the constant bias (gamma).
             r_vec_err = AssociateRelPoses.quats2ang_arr(r_vec_est, r_vec_gt)
             x_arr = self.data_frame_gt_matched[self.cfg.label_angle].to_numpy()
             angle_est_arr = self.data_frame_est_matched[self.cfg.label_angle].to_numpy()
-            if remove_outlier:
-                if not self.cfg.remove_outliers and not max_error:
-                    indices = np.nonzero((angle_est_arr == self.cfg.angle_error_val))
-                else:
-                    indices = np.nonzero((abs(angle_est_arr) > self.cfg.max_angle))
 
+            if max_error:
+                indices = np.nonzero((abs(r_vec_err) > max_error))
                 x_arr = np.delete(x_arr, indices, axis=0, )
                 r_vec_err = np.delete(r_vec_err, indices, axis=0)
-
-                if max_error:
-                    indices = np.nonzero((abs(r_vec_err) > max_error))
-                    x_arr = np.delete(x_arr, indices, axis=0, )
-                    r_vec_err = np.delete(r_vec_err, indices, axis=0)
-
-
 
             gt_indices_sorted = np.argsort(x_arr, axis=0)
             #x_arr = range(len(r_vec_gt))
