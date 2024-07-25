@@ -59,6 +59,7 @@ class RelPoseMeasEvaluation:
                  plot_range_histogram=True,
                  plot_angle_histogram=True,
                  plot_pose_err=True,
+                 plot_pose=True,
                  verbose=False,
                  filter_histogram=True
                  ):
@@ -83,6 +84,10 @@ class RelPoseMeasEvaluation:
                        'fn_gt': fn_gt,
                        'fn_est': fn_est,
                        'filter_histogram': filter_histogram,
+                       'outliers removed': cfg.remove_outliers,
+                       'outliers max range': cfg.max_range,
+                       'outliers min range': 0,
+                       'outliers max angle': cfg.max_angle,
                        'result_dir': result_dir}, statistics_file, sort_keys=False, explicit_start=False, default_flow_style=False)
             yaml.dump({'ID1s': ID1_arr,
                        'ID2s': ID2_arr}, statistics_file, sort_keys=False, explicit_start=False, default_flow_style=True)
@@ -130,6 +135,14 @@ class RelPoseMeasEvaluation:
                     fig_pe = plt.figure(figsize=(20, 15), dpi=int(200))
                     fig_pe.suptitle('Pose Error of ID=' + str(ID1)  +" to " + str(ID2), fontsize=16)
                     fig_pe_dict[ID2] = fig_pe
+            if plot_pose:
+                fig_p_dict = dict()
+                for ID2 in ID2_arr:
+                    if ID1 == ID2:
+                        continue
+                    fig_p = plt.figure(figsize=(20, 15), dpi=int(200))
+                    fig_p.suptitle('Pose of ID=' + str(ID1)  +" to " + str(ID2), fontsize=16)
+                    fig_p_dict[ID2] = fig_p
             if plot_range_histogram:
                 fig_hr = plt.figure(figsize=(20, 15), dpi=int(200))
                 fig_hr.suptitle('Range Error Histograms of ID=' + str(ID1), fontsize=16)
@@ -186,6 +199,16 @@ class RelPoseMeasEvaluation:
                     cfg_plt.close_figure = False
                     cfg_plt.unwrap = False
                     assoc.plot_traj_err(fig=fig_pe, cfg=cfg_plt)
+
+                if plot_pose:
+                    fig_pe = fig_p_dict[ID2]
+                    cfg_plt = TrajectoryPlotConfig()
+                    cfg_plt.title = cfg_title
+                    cfg_plt.show = False
+                    cfg_plt.close_figure = False
+                    cfg_plt.unwrap = True
+                    assoc.plot_traj(fig=fig_pe, cfg=cfg_plt)
+
 
                 if plot_range_error:
                     ax_e = fig_re.add_subplot(n_rows, n_cols, idx)
@@ -267,6 +290,17 @@ class RelPoseMeasEvaluation:
                                                          show=show_plot, close_figure=not show_plot)
                     pass
 
+            if plot_pose:
+                for ID2 in ID2_arr:
+                    if ID1 == ID2:
+                        continue
+                    fig_pe = fig_p_dict[ID2]
+                    fig_pe.tight_layout()
+                    if save_plot:
+                        AssociateRelPoses.show_save_figure(fig=fig_pe, result_dir=result_dir,
+                                                         save_fn=str("Pose_ID" + str(ID1) + "_to_" +str(ID2)),
+                                                         show=show_plot, close_figure=not show_plot)
+                    pass
             if plot_angle_error:
                 fig_ae.tight_layout()
                 if save_plot:

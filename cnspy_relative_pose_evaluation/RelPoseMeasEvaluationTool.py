@@ -131,7 +131,7 @@ class RelPoseMeasEvaluationTool:
                                  max_difference=10**-4,
                                  subsample=0,
                                  verbose=True,
-                                 remove_outliers=False,
+                                 remove_outliers=True,
                                  max_range=9,
                                  range_error_val=0,
                                  label_timestamp='t',
