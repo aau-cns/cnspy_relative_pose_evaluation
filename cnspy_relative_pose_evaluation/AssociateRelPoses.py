@@ -33,10 +33,12 @@ from cnspy_numpy_utils.numpy_statistics import *
 from cnspy_timestamp_association.TimestampAssociation import TimestampAssociation
 from cnspy_trajectory.PlotLineStyle import PlotLineStyle
 from cnspy_ranging_evaluation.AssociateRanges import AssociateRanges, AssociateRangesCfg
+from cnspy_trajectory.SpatialConverter import SpatialConverter
 
 from cnspy_trajectory.Trajectory import Trajectory
 from cnspy_trajectory.TrajectoryEstimated import TrajectoryEstimated
 from cnspy_trajectory.TrajectoryError import TrajectoryError
+from cnspy_trajectory.TrajectoryEstimationError import TrajectoryEstimationError
 from cnspy_trajectory.TrajectoryPlotConfig import TrajectoryPlotConfig
 from cnspy_trajectory.TrajectoryErrorType import TrajectoryErrorType
 
@@ -46,6 +48,7 @@ from cnspy_spatial_csv_formats.EstimationErrorType import EstimationErrorType
 from cnspy_spatial_csv_formats.ErrorRepresentationType import ErrorRepresentationType
 from cnspy_spatial_csv_formats.CSVSpatialFormatType import CSVSpatialFormatType
 from cnspy_spatial_csv_formats.CSVSpatialFormat import  CSVSpatialFormat
+from cnspy_trajectory_evaluation.TrajectoryPosOrientNEES import TrajectoryPosOrientNEES
 
 
 class AssociateRelPoseCfg(AssociateRangesCfg):
@@ -91,6 +94,7 @@ class AssociateRelPoses(AssociateRanges):
     traj_err = None # TrajectoryEstimationError()
     traj_est = None
     traj_gt = None
+    traj_nees = None # TrajectoryPosOrientNEES
 
     def __init__(self, fn_gt, fn_est, cfg):
         assert (isinstance(cfg, AssociateRelPoseCfg))
@@ -230,14 +234,32 @@ class AssociateRelPoses(AssociateRanges):
 
 
         self.traj_err = AbsoluteTrajectoryError.compute_trajectory_error(traj_est=self.traj_est,traj_gt=self.traj_gt, traj_err_type=TrajectoryErrorType(EstimationErrorType.type1))
+        # convert the traj_err into the error representation used
+        theta_vec = SpatialConverter.convert_q_vec_to_theta_vec(self.traj_err.q_vec, rot_err_rep=est_fmt.rotation_error_representation)
+        traj_est_err = TrajectoryEstimationError(t_vec=self.traj_err.t_vec, nu_vec=self.traj_err.p_vec, theta_vec=theta_vec,
+                                                 est_err_type=est_fmt.estimation_error_type, err_rep_type=est_fmt.rotation_error_representation)
+        self.traj_nees = TrajectoryPosOrientNEES(traj_est=self.traj_est, traj_err=traj_est_err)
 
-    def plot_traj_err(self, cfg=TrajectoryPlotConfig(), fig=None):
+    def plot_traj_err(self, cfg=TrajectoryPlotConfig(), fig=None, plot_NEES=True):
         if not self.data_loaded:
             return
 
-        fig, ax1, ax2, ax3, ax4 = TrajectoryError.plot_pose_err(traj_est=self.traj_est, traj_err=self.traj_err,
+        if plot_NEES:
+            ax1 = fig.add_subplot(3,2,1)
+            ax2 = fig.add_subplot(3,2,3)
+            ax3 = fig.add_subplot(3,2,2)
+            ax4 = fig.add_subplot(3,2,4)
+            ax5 = fig.add_subplot(3,2,5)
+            ax6 = fig.add_subplot(3,2,6)
+        else:
+            ax1 = fig.add_subplot(221)
+            ax2 = fig.add_subplot(222)
+            ax3 = fig.add_subplot(223)
+            ax4 = fig.add_subplot(224)
+
+        TrajectoryError.plot_pose_err(traj_est=self.traj_est, traj_err=self.traj_err,
                                                                 cfg=cfg, fig=fig,
-                                                                angles=True, plot_rpy=True)
+                                                                angles=True, plot_rpy=True, axes=[ax1, ax2, ax3, ax4])
 
         if self.traj_est.Sigma_R_vec is not None:
             self.traj_est.ax_plot_p_sigma(ax2, cfg=cfg, colors=['darkred', 'darkgreen', 'darkblue'],
@@ -245,7 +267,14 @@ class AssociateRelPoses(AssociateRanges):
             self.traj_est.ax_plot_rpy_sigma(ax4, cfg=cfg, colors=['darkred', 'darkgreen', 'darkblue'],
                                             ls=PlotLineStyle(linewidth=0.5, linestyle='-.'))
 
-        return fig, ax1, ax2, ax3, ax4
+        if plot_NEES:
+            self.traj_nees.plot_NEES_p(ax1=ax5, relative_time=cfg.relative_time)
+            ax5.grid()
+            self.traj_nees.plot_NEES_R(ax2=ax6, relative_time=cfg.relative_time)
+            ax6.grid()
+            return fig, ax1, ax2, ax3, ax4, ax5, ax6
+        else:
+            return fig, ax1, ax2, ax3, ax4
 
     def plot_traj(self, cfg=TrajectoryPlotConfig(), fig=None):
         if not self.data_loaded:
