@@ -9,11 +9,15 @@ The following evaluations can be conducted:
 
 | Describtion    | Images |
 |:---------:|:---:|
-| Pose Error Plot (left: measured, right: error) | ![](./doc/img/Pose_Errors_ID0_to_1.png) |
-| Range (gt vs. measured) outliers set to zero      | ![](./doc/img/Ranges_ID0.png) |
-| Angle (gt vs. measured) outliers set to zero      | ![](./doc/img/Angle_ID0.png) |
-| Range Error Histogram (filtered) and distribution | ![](./doc/img/Range_Error_Histograms_ID0.png) |
-| Angle Error Histogram (filtered) and distribution | ![](./doc/img/Angle_Error_Histograms_ID0.png) |
+| Pose Plot (left: measured, right: gt) | ![](./doc/img/Pose_ID1_to_2.png) |
+| Pose Error Plot (left: position, right: orientation, top: meas, middle: error, bottom: nees)  | ![](./doc/img/Pose_Errors_ID1_to_2.png) |
+| Range (gt vs. measured) outliers removed      | ![](./doc/img/Ranges_ID1.png) |
+| Range Sorted (gt vs. measured) outliers removed      | ![](./doc/img/Range_Sorted_ID1.png) |
+| Range Error (measured-gt) outliers removed      | ![](./doc/img/Range_Errors_ID1.png) |
+| Range Error Histogram (filtered) and distribution | ![](./doc/img/Range_Error_Histograms_ID1.png) |
+| Angle (gt vs. measured) outliers set to zero      | ![](./doc/img/Angle_ID1.png) |
+| Angle Error (measured-gt) outliers removed      | ![](./doc/img/Angle_Errors_ID1.png) |
+| Angle Error Histogram (filtered) and distribution | ![](./doc/img/Angle_Error_Histograms_ID1.png) |
 | Statistics | [statistics.yaml](./doc/statistics.yaml) |
 
 
@@ -54,6 +58,17 @@ sensor_topics: {0: "/uav10/vrpn_client/raw_pose", 1: "/uav11/vrpn_client/raw_pos
 relpose_topics: {0: "/uav10/data_handler/uvdar_fcu", 1: "/uav11/data_handler/uvdar_fcu", 2: "/uav12/data_handler/uvdar_fcu"}
 
 ```
+
+## Important notes for the NEES computation
+
+The covariance of the measurements are assumed to represent the position uncertainty in meters and in the origin of reference frame of the observer, e.g. the camera. The covariance of the measured orientation is assumed to be in radian representing the uncertainty about the roll-pitch-yaw angles about the x-y-z-axes in zyx order (Rz(y)*Ry(p)*Rx(r)) of the body frame (local), thus `EstimationErrorType.type5`: 
+* **TRUE = EST + ERR for positions R(3);** 
+* **TRUE = EST \oplus ERR for rotations SO(3);**
+* **global position error, local orientation error;**.
+
+Please check out: [ErrorRepresentationType](https://github.com/aau-cns/cnspy_spatial_csv_formats/blob/main/cnspy_spatial_csv_formats/ErrorRepresentationType.py) and [EstimationErrorType](https://github.com/aau-cns/cnspy_spatial_csv_formats/blob/main/cnspy_spatial_csv_formats/EstimationErrorType.py)
+
+
 
 ## License
 
