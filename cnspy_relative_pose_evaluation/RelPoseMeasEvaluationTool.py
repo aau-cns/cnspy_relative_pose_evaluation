@@ -151,15 +151,17 @@ class RelPoseMeasEvaluationTool:
                                      save_plot=save_plot,
                                      show_plot=show_plot,
                                      save_statistics=True,
-                                     plot_timestamps=False,
+                                     plot_timestamps=True,
                                      plot_ranges=True,
                                      plot_angles=True,
-                                     plot_ranges_sorted=False,
-                                     plot_range_error=False,
-                                     plot_angle_error=False,
+                                     plot_ranges_sorted=True,
+                                     plot_range_error=True,
+                                     plot_angle_error=True,
                                      plot_range_histogram=True,
                                      plot_angle_histogram=True,
                                      filter_histogram=True,
+                                     plot_pose_err=True,
+                                     plot_pose=True,
                                      verbose=verbose
                                      )
         pass  # DONE

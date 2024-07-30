@@ -225,7 +225,7 @@ class AssociateRelPoses(AssociateRanges):
                                        q_vec=self.data_frame_est_matched[[ 'qx', 'qy', 'qz', 'qw']].to_numpy(),
                                             Sigma_p_vec=Sigma_p_vec, Sigma_R_vec=Sigma_R_vec)
         est_fmt = CSVSpatialFormat(fmt_type=CSVSpatialFormatType.PosOrientWithCov,
-                                   est_err_type=EstimationErrorType.type1,
+                                   est_err_type=EstimationErrorType.type5,
                                    err_rep_type=ErrorRepresentationType.rpy_rad)
         self.traj_est.set_format(est_fmt)
         self.traj_gt = Trajectory(t_vec = self.data_frame_gt_matched['t'].to_numpy(),
@@ -233,7 +233,7 @@ class AssociateRelPoses(AssociateRanges):
                                        q_vec=self.data_frame_gt_matched[['qx', 'qy', 'qz', 'qw']].to_numpy())
 
 
-        self.traj_err = AbsoluteTrajectoryError.compute_trajectory_error(traj_est=self.traj_est,traj_gt=self.traj_gt, traj_err_type=TrajectoryErrorType(EstimationErrorType.type1))
+        self.traj_err = AbsoluteTrajectoryError.compute_trajectory_error(traj_est=self.traj_est,traj_gt=self.traj_gt, traj_err_type=TrajectoryErrorType(est_fmt.estimation_error_type))
         # convert the traj_err into the error representation used
         theta_vec = SpatialConverter.convert_q_vec_to_theta_vec(self.traj_err.q_vec, rot_err_rep=est_fmt.rotation_error_representation)
         traj_est_err = TrajectoryEstimationError(t_vec=self.traj_err.t_vec, nu_vec=self.traj_err.p_vec, theta_vec=theta_vec,
@@ -269,8 +269,10 @@ class AssociateRelPoses(AssociateRanges):
 
         if plot_NEES:
             self.traj_nees.plot_NEES_p(ax1=ax5, relative_time=cfg.relative_time)
+            ax5.set_yscale('log')
             ax5.grid()
             self.traj_nees.plot_NEES_R(ax2=ax6, relative_time=cfg.relative_time)
+            ax6.set_yscale('log')
             ax6.grid()
             return fig, ax1, ax2, ax3, ax4, ax5, ax6
         else:
