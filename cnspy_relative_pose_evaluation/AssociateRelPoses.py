@@ -471,9 +471,10 @@ class AssociateRelPoses(AssociateRanges):
 
         if not filter_histogramm:
             # add a 'best fit' line
-            stat = numpy_statistics(vNumpy=np.squeeze(np.asarray(r_vec_err)))
-            sigma = stat['std']
-            mu = stat['mean']
+            # NOTE: angle error is always positive, therefore, we create negative side, and mean is 0:
+            stat = numpy_statistics(vNumpy=np.squeeze(np.concatenate((np.asarray(r_vec_err), np.asarray(-1.0*r_vec_err)))))
+            sigma = max(0.001, stat['std']) # avoid division by 0
+            mu = 0.0
             y = ((1 / (np.sqrt(2 * np.pi) * sigma)) *
                  np.exp(-0.5 * (1 / sigma * (bins - mu)) ** 2))
 
@@ -505,10 +506,11 @@ class AssociateRelPoses(AssociateRanges):
                                        (r_vec_err < (mean_best_errors + 2.0*max_offset_errors))]
 
             # add a 'best fit' line
-            stat = numpy_statistics(vNumpy=np.squeeze(np.asarray(r_filtered_err)))
+            # NOTE: angle error is always positive, therefore, we create negative side, and mean is 0:
+            stat = numpy_statistics(vNumpy=np.squeeze(np.concatenate((np.asarray(r_filtered_err), np.asarray(-1.0*r_filtered_err)))))
             num_plot_bins = int(num_bins*(perc_inliers))
             n_, bins_, patches_ = ax.hist(r_filtered_err, num_plot_bins, density=True, color='blue', alpha=0.75, label='Histogram (filtered)')
-            sigma = stat['std']
+            sigma = max(0.001, stat['std']) # avoid division by 0
             mu = stat['mean']
             scaling = 1.0; #len(r_filtered_err)/num_plot_bins
             y = ((1 / (np.sqrt(2 * np.pi) * sigma)) *
