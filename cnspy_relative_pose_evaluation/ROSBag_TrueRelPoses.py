@@ -400,11 +400,6 @@ def main():
     parser.add_argument('--std_or',
                         help='standard deviation of generated measurements: z = d + white_noise(std_range)',
                         default=0.0)
-    parser.add_argument('--perc_outliers', help='specifies a percentage of generated outliers by modified the '
-                                                'measurement: z = d + white_noise(std_range) + std_range',
-                        default=0.0)
-    parser.add_argument('--outlier_stddev', help='standard deviation of the outliers.',
-                        default=1.0)
     parser.add_argument('--use_header_timestamp', action='store_true',
                         help='overwrites the bag time with the header time stamp', default=False)
 
@@ -416,7 +411,7 @@ def main():
                                  cfg=args.cfg,
                                  verbose=args.verbose,
                                  stddev_pos=float(args.std_pos),
-                                   stddev_or=float(args.std_or),
+                                 stddev_or=float(args.std_or),
                                  use_header_timestamp=args.use_header_timestamp ):
         print(" ")
         print("finished after [%s sec]\n" % str(time.time() - tp_start))

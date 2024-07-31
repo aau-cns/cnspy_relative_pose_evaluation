@@ -367,6 +367,7 @@ def main():
     parser.add_argument('--plot_ranges_sorted', action='store_true', default=False)
     parser.add_argument('--plot_errors', action='store_true', default=False)
     parser.add_argument('--plot_histograms', action='store_true', default=False)
+    parser.add_argument('--filter_histogram', action='store_true', default=False)
     tp_start = time.time()
     args = parser.parse_args()
     cfg = AssociateRelPoseCfg(ID1=None,
@@ -402,6 +403,7 @@ def main():
                                  plot_angle_error=args.plot_errors,
                                  plot_range_histogram=args.plot_histograms,
                                  plot_angle_histogram=args.plot_histograms,
+                                 filter_histogram=args.filter_histogram
                                  )
 
     print(" ")
