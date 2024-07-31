@@ -41,7 +41,7 @@ from cnspy_relative_pose_evaluation.RelPoseMeasEvaluation import RelPoseMeasEval
 
 class RelPoseMeasEvaluationTool:
     @staticmethod
-    def evaluate(bagfile_in, cfg, result_dir=None, verbose=True, show_plot=True, save_plot=True, ID_arr=None):
+    def evaluate(bagfile_in, cfg, result_dir=None, verbose=True, show_plot=True, save_plot=True, ID_arr=None, filter_histogram=True, extra_plots = True):
         if not os.path.isfile(bagfile_in):
             print("RangeEvaluationTool: could not find file: %s" % bagfile_in)
             return False
@@ -113,8 +113,7 @@ class RelPoseMeasEvaluationTool:
                                             cfg=cfg,
                                             verbose=verbose,
                                             use_header_timestamp=False,
-                                            stddev_pos=0.0,
-                                            perc_outliers=0.0)
+                                            stddev_pos=0.0)
 
         if not os.path.isfile(fn_gt_ranges):
             # 3) extract all measurements from the clean bagfile
@@ -141,6 +140,7 @@ class RelPoseMeasEvaluationTool:
                                  label_range='range')
         cfg.max_range_error = 9
 
+
         eval = RelPoseMeasEvaluation(fn_gt=fn_gt_ranges,
                                      fn_est=fn_meas_ranges,
                                      ID1_arr=Sensor_ID_arr,
@@ -151,15 +151,15 @@ class RelPoseMeasEvaluationTool:
                                      save_plot=save_plot,
                                      show_plot=show_plot,
                                      save_statistics=True,
-                                     plot_timestamps=True,
-                                     plot_ranges=True,
-                                     plot_angles=True,
-                                     plot_ranges_sorted=True,
-                                     plot_range_error=True,
-                                     plot_angle_error=True,
+                                     plot_timestamps=extra_plots,
+                                     plot_ranges=extra_plots,
+                                     plot_angles=extra_plots,
+                                     plot_ranges_sorted=extra_plots,
+                                     plot_range_error=extra_plots,
+                                     plot_angle_error=extra_plots,
                                      plot_range_histogram=True,
                                      plot_angle_histogram=True,
-                                     filter_histogram=True,
+                                     filter_histogram=filter_histogram,
                                      plot_pose_err=True,
                                      plot_pose=True,
                                      verbose=verbose

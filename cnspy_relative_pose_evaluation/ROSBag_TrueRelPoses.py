@@ -18,8 +18,12 @@
 # BASED ON: https://github.com/aau-cns/cnspy_rosbag2csv
 # just install "pip install cnspy-rosbag2csv"
 ########################################################################################################################
+import math
 import sys
 import traceback
+
+import spatialmath
+
 import rosbag
 import time
 import os
@@ -83,6 +87,18 @@ def interpolate_pose(pose_hist, timestamp, round_decimals=4):
     return T_GLOBAL_BODY_Ti
 
 
+def random_orientation(stddev_rad):
+    ax = np.random.randn(3, 1)
+    ax = ax / np.linalg.norm(ax)
+    ang = np.random.randn(1, 1)[0]*stddev_rad
+    return axang2quat(ax, ang[0])
+
+def axang2quat(u, phi):
+    u = u / np.linalg.norm(u)
+    q_w = math.cos(phi*0.5)
+    q_v = u * math.sin(phi*0.5)
+    return UnitQuaternion(s=q_w, v=np.array(q_v)).unit()
+
 class ROSBag_TrueRelPoses:
     def __init__(self):
         pass
@@ -92,10 +108,9 @@ class ROSBag_TrueRelPoses:
                 bagfile_out_name,
                 cfg,
                 stddev_pos=0.0,
-                perc_outliers=0.0,
-                stddev_outlier=0.5,
+                stddev_or=0.0,
                 use_header_timestamp=False,
-                verbose=False
+                verbose=False,
                 ):
 
         if not os.path.isfile(bagfile_in_name):
@@ -112,8 +127,7 @@ class ROSBag_TrueRelPoses:
             print("* bagfile out name: " + str(bagfile_out_name))
             print("* cfg YAML file: \t " + str(cfg))
             print("* stddev_pos: " + str(stddev_pos))
-            print("* perc_outliers: " + str(perc_outliers))
-            print("* outlier_stddev: " + str(stddev_outlier))
+            print("* stddev_or: " + str(stddev_or))
             print("* use_header_timestamp: " + str(use_header_timestamp))
 
         ## Open BAG file:
@@ -270,6 +284,10 @@ class ROSBag_TrueRelPoses:
         for topic, poses in dict_poses.items():
             dict_history[topic] = HistoryBuffer(dict_t=poses)
 
+        noise_pos_arr = np.random.normal(0, stddev_pos,
+                                               size=(3,num_messages))  # 1000 samples with normal distribution
+
+
         ## TODO:
         cnt = 0
         try:  # else already exists
@@ -299,12 +317,18 @@ class ROSBag_TrueRelPoses:
                                     T_SENSOR1_SENSOR2 = T_GLOBAL_SENSOR1.inv() * T_GLOBAL_SENSOR2
                                     p = T_SENSOR1_SENSOR2.t
                                     q = UnitQuaternion(T_SENSOR1_SENSOR2.R, norm=True).unit()
+                                    if stddev_pos > 0:
+                                        p_noise = np.random.normal(0, stddev_pos, size=3)
+                                        p = p + p_noise.T
+                                    if stddev_or > 0:
+                                        q_noise = random_orientation(stddev_rad=stddev_or)
+                                        q = q*q_noise
+                                    else:
+                                        pass
                                     qv = q.vec
 
                                     pos_id = PoseWithCovarianceIdentified()
                                     pos_id.id = ID2
-                                    pos_id.pose.position.x = p[0]
-                                    # TODO: add noise etc.
                                     pos_id.pose.position.x = p[0]
                                     pos_id.pose.position.y = p[1]
                                     pos_id.pose.position.z = p[2]
@@ -312,6 +336,17 @@ class ROSBag_TrueRelPoses:
                                     pos_id.pose.orientation.x = qv[1]
                                     pos_id.pose.orientation.y = qv[2]
                                     pos_id.pose.orientation.z = qv[3]
+
+                                    if stddev_pos > 0:
+                                        # upper left block
+                                        var_pos = stddev_pos*stddev_pos
+                                        for idx in [0, 7, 14]:
+                                            pos_id.covariance[idx] = var_pos
+                                    if stddev_or > 0:
+                                        # lower right block
+                                        var_or = stddev_or * stddev_or
+                                        for idx in [21, 28, 35]:
+                                            pos_id.covariance[idx] = var_or
                                     msg_gt.poses.append(pos_id)
                             idx_pose += 1
                         # for id2
@@ -361,7 +396,10 @@ def main():
     parser.add_argument('--verbose', action='store_true', default=False)
     parser.add_argument('--std_pos',
                         help='standard deviation of generated measurements: z = d + white_noise(std_range)',
-                        default=0.1)
+                        default=0.0)
+    parser.add_argument('--std_or',
+                        help='standard deviation of generated measurements: z = d + white_noise(std_range)',
+                        default=0.0)
     parser.add_argument('--perc_outliers', help='specifies a percentage of generated outliers by modified the '
                                                 'measurement: z = d + white_noise(std_range) + std_range',
                         default=0.0)
@@ -378,8 +416,7 @@ def main():
                                  cfg=args.cfg,
                                  verbose=args.verbose,
                                  stddev_pos=float(args.std_pos),
-                                 perc_outliers=float(args.perc_outliers),
-                                 stddev_outlier=float(args.outlier_stddev),
+                                   stddev_or=float(args.std_or),
                                  use_header_timestamp=args.use_header_timestamp ):
         print(" ")
         print("finished after [%s sec]\n" % str(time.time() - tp_start))
