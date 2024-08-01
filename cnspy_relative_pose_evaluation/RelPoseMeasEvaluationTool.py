@@ -41,7 +41,9 @@ from cnspy_relative_pose_evaluation.RelPoseMeasEvaluation import RelPoseMeasEval
 
 class RelPoseMeasEvaluationTool:
     @staticmethod
-    def evaluate(bagfile_in, cfg, result_dir=None, verbose=True, show_plot=True, save_plot=True, ID_arr=None, filter_histogram=True, extra_plots = True):
+    def evaluate(bagfile_in, cfg, result_dir=None, verbose=True, show_plot=True, save_plot=True,
+                 ID_arr=None, filter_histogram=True, extra_plots = True, max_range=None, max_angle=None,
+                 remove_outliers=True):
         if not os.path.isfile(bagfile_in):
             print("RangeEvaluationTool: could not find file: %s" % bagfile_in)
             return False
@@ -130,15 +132,19 @@ class RelPoseMeasEvaluationTool:
                                  relative_timestamps=False,
                                  max_difference=10**-4,
                                  subsample=0,
-                                 verbose=True,
-                                 remove_outliers=True,
-                                 max_range=9,
+                                 verbose=verbose,
+                                 remove_outliers=remove_outliers,
                                  range_error_val=0,
                                  label_timestamp='t',
                                  label_ID1='ID1',
                                  label_ID2='ID2',
                                  label_range='range')
-        cfg.max_range_error = 9
+
+        if max_range is not None:
+            cfg.max_range_error = max_range
+            cfg.max_range = max_range
+        if max_angle is not None:
+            cfg.max_angle = max_angle
 
 
         eval = RelPoseMeasEvaluation(fn_gt=fn_gt_ranges,
@@ -176,19 +182,32 @@ def main():
     parser.add_argument('--cfg',
                         help='YAML configuration file describing the setup: {sensor_topics, sensor_positions, sensor_orientations, relpose_topics}',
                         default="config.yaml", required=True)
-    parser.add_argument('--save_plot', action='store_true', default=True)
+    parser.add_argument('--save_plot', action='store_true', default=False)
     parser.add_argument('--show_plot', action='store_true', default=False)
-    parser.add_argument('--verbose', action='store_true', default=True)
+    parser.add_argument('--verbose', action='store_true', default=False)
+    parser.add_argument('--extra_plots', action='store_true', default=False)
+    parser.add_argument('--keep_outliers', action='store_true', default=False)
+    parser.add_argument('--filter_histogram', action='store_true', default=False)
+    parser.add_argument('--max_range', help='max. range that classifies them as outlier', default='30')
+    parser.add_argument('--max_angle', help='max. range that classifies them as outlier', default='6.3')
 
     tp_start = time.time()
     args = parser.parse_args()
 
     RelPoseMeasEvaluationTool.evaluate(bagfile_in=args.bagfile,
-                                 cfg=args.cfg,
-                                 result_dir=args.result_dir,
-                                 save_plot=args.save_plot,
-                                 show_plot=args.show_plot,
-                                 verbose=args.verbose)
+                                       cfg=args.cfg,
+                                       result_dir=args.result_dir,
+                                       save_plot=args.save_plot,
+                                       show_plot=args.show_plot,
+                                       verbose=args.verbose,
+                                       max_range=float(args.max_range),
+                                       max_angle=float(args.max_angle),
+                                       extra_plots=args.extra_plots,
+                                       filter_histogram=args.filter_histogram,
+                                       remove_outliers=not args.keep_outliers)
+    pass
+    print(" ")
+    print("finished after [%s sec]\n" % str(time.time() - tp_start))
     pass
 
 
