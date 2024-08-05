@@ -31,7 +31,8 @@ import numpy as np
 from numpy import linalg as LA
 from spatialmath import UnitQuaternion, SO3, SE3, Quaternion, base, quaternion
 from spatialmath.base.quaternions import qslerp
-from cnspy_ranging_evaluation.ROSBag_TrueRanges import HistoryBuffer, get_key_from_value
+from cnspy_ranging_evaluation.HistoryBuffer import get_key_from_value
+from cnspy_ranging_evaluation.ROSBag_Pose import ROSBag_Pose
 from std_msgs.msg import Header, Time
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformStamped
 
@@ -56,7 +57,7 @@ def relpose_to_csv_line(timestamp, ID1, ID2, Pose, round_decimals=4):
 
 
 
-class ROSBag_Poses2RelPose:
+class ROSBag_Poses2RelPoses:
     def __init__(self):
         pass
 
@@ -64,15 +65,15 @@ class ROSBag_Poses2RelPose:
     def extract(bagfile_name, cfg, filename, result_dir="", verbose=False):
 
         if not os.path.isfile(bagfile_name):
-            print("ROSBag_Poses2RelPose: could not find file: %s" % bagfile_name)
+            print("ROSBag_Poses2RelPoses: could not find file: %s" % bagfile_name)
             return False
         cfg = os.path.abspath(cfg)
         if not os.path.isfile(cfg):
-            print("ROSBag_Poses2RelPose: could not find file: %s" % cfg)
+            print("ROSBag_Poses2RelPoses: could not find file: %s" % cfg)
             return False
 
         if verbose:
-            print("ROSBag_Poses2RelPose:")
+            print("ROSBag_Poses2RelPoses:")
             print("* bagfile name: " + str(bagfile_name))
             print("* cfg: \t " + str(cfg))
             print("* filename: " + str(filename))
@@ -82,7 +83,7 @@ class ROSBag_Poses2RelPose:
             bag = rosbag.Bag(bagfile_name)
         except:
             if verbose:
-                print("ROSBag_Poses2RelPose: Unexpected error!")
+                print("ROSBag_Poses2RelPoses: Unexpected error!")
 
             return False
 
@@ -94,21 +95,21 @@ class ROSBag_Poses2RelPose:
                 return False
             if "sensor_orientations" not in dict_cfg:
                 print("[sensor_orientations] does not exist in fn=" + cfg)
-            if "sensor_topics" not in dict_cfg:
-                print("[sensor_topics] does not exist in fn=" + cfg)
+            if "true_pose_topics" not in dict_cfg:
+                print("[true_pose_topics] does not exist in fn=" + cfg)
                 return False
             print("Read successful")
         if verbose:
             print("configuration contains:")
             print("sensor_positions:" + str(dict_cfg["sensor_positions"]))
             print("sensor_orientations:" + str(dict_cfg["sensor_orientations"]))
-            print("sensor_topics:" + str(dict_cfg["sensor_topics"]))
+            print("true_pose_topics:" + str(dict_cfg["true_pose_topics"]))
 
         info_dict = yaml.load(bag._get_yaml_info(), Loader=yaml.FullLoader)
 
         if info_dict is None or 'messages' not in info_dict:
             if verbose:
-                print("ROSBag_Poses2RelPose: Unexpected error, bag file might be empty!")
+                print("ROSBag_Poses2RelPoses: Unexpected error, bag file might be empty!")
             bag.close()
             return False
 
@@ -134,7 +135,7 @@ class ROSBag_Poses2RelPose:
         idx = 0
 
         ## create a file writer for each sensor topic
-        for  id, topicName in dict_cfg["sensor_topics"].items():
+        for  id, topicName in dict_cfg["true_pose_topics"].items():
             if filename is None:
                 fn = str(folder + '/') + str.replace(topicName[1:], '/', '_') + '_sensor_' + str(id) + '.csv'
             else:
@@ -154,7 +155,7 @@ class ROSBag_Poses2RelPose:
         bag_topics = info_dict['topics']
 
         found = True
-        for id, topicName in dict_cfg["sensor_topics"].items():
+        for id, topicName in dict_cfg["true_pose_topics"].items():
             found_ = False
             for topic_info in bag_topics:
                 if topic_info['topic'] == topicName:
@@ -167,17 +168,16 @@ class ROSBag_Poses2RelPose:
             found = found & found_
             pass
         if not found:
-            print("\nROSBag_Poses2RelPose: not all topics found! Stopping here...")
-            for topicName in dict_cfg["sensor_topics"]:
+            print("\nROSBag_Poses2RelPoses: not all topics found! Stopping here...")
+            for topicName in dict_cfg["true_pose_topics"]:
                 print(" * " + topicName)
             return False
 
         if verbose:
-            print("\nROSBag_Poses2RelPose: num messages " + str(num_messages))
+            print("\nROSBag_Poses2RelPoses: num messages " + str(num_messages))
 
         ## store the BODY SENSOR pose in a dictionary
         dict_T_BODY_SENSOR = dict() # map<topic, SE3>
-        dict_poses = dict() # map<topic<timestamp, SE3>>
         for ID, sensor_pos in dict_cfg["sensor_positions"].items():
             t_BT = np.array(sensor_pos)
             q_BT = UnitQuaternion()
@@ -185,74 +185,30 @@ class ROSBag_Poses2RelPose:
                 # expecting: w,x,y,z
                 q_BT = UnitQuaternion(np.array(dict_cfg["sensor_orientations"][ID]), norm=True)
                 pass
-            dict_T_BODY_SENSOR[dict_cfg["sensor_topics"][ID]] = SE3.Rt(q_BT.R, t_BT, check=True)
-            dict_poses[dict_cfg["sensor_topics"][ID]] = dict()
+            dict_T_BODY_SENSOR[dict_cfg["true_pose_topics"][ID]] = SE3.Rt(q_BT.R, t_BT, check=True)
+
 
         ## extract the poses of the desired topics from the BAG file
         round_decimals = 4
-        try:  # else already exists
-            print("ROSBag_Poses2RelPose: extracting poses...")
-            cnt_poses = 0
-            for topic, msg, t in tqdm(bag.read_messages(), total=num_messages, unit="msgs"):
-                if topic in dict_cfg["sensor_topics"].values():
-                    T_GLOBAL_BODY = None
-                    if hasattr(msg, 'header') and hasattr(msg, 'pose'):  # POSE_STAMPED
-                        t = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
-                        q_GB = [msg.pose.orientation.w, msg.pose.orientation.x, msg.pose.orientation.y,
-                                msg.pose.orientation.z]
-
-                        q = UnitQuaternion(q_GB, norm=True).unit()
-                        T_GLOBAL_BODY = SE3.Rt(q.R, t, check=True)
-                        pass
-                    elif hasattr(msg, 'header') and hasattr(msg, 'transform'):
-                        t = np.array(
-                            [msg.transform.translation.x, msg.transform.translation.y, msg.transform.translation.z])
-                        q_GB = [msg.transform.rotation.w, msg.transform.rotation.x, msg.transform.rotation.y,
-                                msg.transform.rotation.z]
-                        q = UnitQuaternion(q_GB, norm=True).unit()
-                        T_GLOBAL_BODY = SE3.Rt(q.R, t, check=True)
-                    else:
-                        print("\nROSbag_TrueRanges: unsupported message " + str(msg))
-                        continue
-
-                    if T_GLOBAL_BODY is not None:
-                        timestamp = round(msg.header.stamp.to_sec(), round_decimals)
-                        T_BODY_SENSOR = dict_T_BODY_SENSOR[topic]
-                        dict_poses[topic][timestamp] = T_GLOBAL_BODY * T_BODY_SENSOR
-                        cnt_poses = cnt_poses + 1
-                        pass
-                pass
-
-            if cnt_poses == 0:
-                print("\nROSbag_TrueRanges: no poses obtained!")
-                return False
-            else:
-                print("\nROSbag_TrueRanges: poses extractd: " + str(cnt_poses))
-
-        except AssertionError as error:
-            print(error)
-            print(
-                "ROSBag_Poses2RelPose: Unexpected error while reading the bag file!\n * try: $ rosbag fix <bagfile> <fixed>")
-            return False
-
-        ## convert poses to History
-        dict_history = dict() # map<topic, history>
-        for topic, poses in dict_poses.items():
-            dict_history[topic] = HistoryBuffer(dict_t=poses)
+        dict_history = ROSBag_Pose.extract_poses(bag, num_messages,
+                                                 dict_cfg["true_pose_topics"],
+                                                 dict_cfg["true_pose_topics"],
+                                                 round_decimals,
+                                                 dict_T_BODY_SENSOR)
 
         ## TODO:
         try:  # else already exists
             for topic, hist in dict_history.items():
                 if verbose:
-                    print("\nROSBag_Poses2RelPose: compute relative pose with respect to topic=[" + topic + "]...")
+                    print("\nROSBag_Poses2RelPoses: compute relative pose with respect to topic=[" + topic + "]...")
                 for idx in tqdm(range(0, len(hist.t_vec)), total= len(hist.t_vec), unit="poses"):
                     file_writer = dict_file_writers[topic]
-                    ID1 = get_key_from_value(dict_cfg["sensor_topics"], topic)
+                    ID1 = get_key_from_value(dict_cfg["true_pose_topics"], topic)
                     T_GLOBAL_SENSOR1 = hist.val_vec[idx]
                     timestamp = hist.t_vec[idx]
-                    for ID2, topic2 in dict_cfg["sensor_topics"].items():
+                    for ID2, topic2 in dict_cfg["true_pose_topics"].items():
                         if topic != topic2:
-                            #ID2 = get_key_from_value(dict_cfg["sensor_topics"], topic2)
+                            #ID2 = get_key_from_value(dict_cfg["true_pose_topics"], topic2)
 
                             T_GLOBAL_SENSOR2 = None
                             if  dict_history[topic2].exists_at_t(timestamp) is None:
@@ -300,7 +256,7 @@ class ROSBag_Poses2RelPose:
                             content = relpose_to_csv_line(timestamp, ID1, ID2, T_SENSOR1_SENSOR2, round_decimals)
                             file_writer.writerow(content)
         except  Exception as e:
-            print("ROSBag_Poses2RelPose: Unexpected error while creating the CSV files! msg=%s" % repr(e))
+            print("ROSBag_Poses2RelPoses: Unexpected error while creating the CSV files! msg=%s" % repr(e))
             print(str(sys.exc_info()))
             return False
         ## CLEANUP:
@@ -311,7 +267,7 @@ class ROSBag_Poses2RelPose:
         # check if a topic was found by checking if the topic header was written
         for topic, header_writen in dict_header_written.items():
             if not header_writen:
-                print("\nROSBag_Poses2RelPose: \n\tWARNING topic [" + str(topic) + "] was not in bag-file")
+                print("\nROSBag_Poses2RelPoses: \n\tWARNING topic [" + str(topic) + "] was not in bag-file")
                 print("\tbag file [" + str(bagfile_name) + "] contains: ")
                 # print(info_dict['topics'])
                 for t in info_dict['topics']:
@@ -319,7 +275,7 @@ class ROSBag_Poses2RelPose:
                 return False
 
         if verbose:
-            print("\nROSBag_Poses2RelPose: extracting done! ")
+            print("\nROSBag_Poses2RelPoses: extracting done! ")
 
         bag.close()
         return True
@@ -328,7 +284,7 @@ class ROSBag_Poses2RelPose:
 def main():
     # example: ROSBag_Pose2Ranges.py --bagfile ../test/sample_data//uwb_calib_a01_2023-08-31-21-05-46.bag --topic /d01/mavros/vision_pose/pose --cfg ../test/sample_data/config.yaml --verbose
     parser = argparse.ArgumentParser(
-        description='ROSBag_Poses2RelPose: extract given pose topics and compute for each pose a relative poses, which is stored into a CSV file')
+        description='ROSBag_Poses2RelPoses: extract given pose topics and compute for each pose a relative poses, which is stored into a CSV file')
     parser.add_argument('--bagfile', help='input bag file', required=True)
     parser.add_argument('--cfg', help='YAML configuration file describing the setup: {sensor_positions, sensor_topics}', default="config.yaml", required=True)
     parser.add_argument('--filename', help='csv filename of corresponding topic', default="")
@@ -339,10 +295,10 @@ def main():
     tp_start = time.time()
     args = parser.parse_args()
 
-    if ROSBag_Poses2RelPose.extract(bagfile_name=args.bagfile, topic=str(args.topic), cfg=args.cfg,
-                          filename=args.filename, result_dir=args.result_dir,
-                          verbose=args.verbose
-                          ):
+    if ROSBag_Poses2RelPoses.extract(bagfile_name=args.bagfile, topic=str(args.topic), cfg=args.cfg,
+                                     filename=args.filename, result_dir=args.result_dir,
+                                     verbose=args.verbose
+                                     ):
         print(" ")
         print("finished after [%s sec]\n" % str(time.time() - tp_start))
     else:
