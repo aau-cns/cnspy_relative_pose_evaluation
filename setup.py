@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='cnspy_relative_pose_evaluation',
-    version="0.1.3",
+    version="0.1.4",
     author='Roland Jung',
     author_email='roland.jung@aau.at',
     description='Evaluation of relative pose measurements.',
@@ -31,7 +31,7 @@ setup(
 
     packages=find_packages(exclude=["test_*", "TODO*"]),
     python_requires='>=3.6',
-    install_requires=['numpy', 'pandas', 'spatialmath-python', 'scipy', 'matplotlib', 'joblib', 'configparser', 'cnspy_numpy_utils', 'cnspy_timestamp_association>=0.2.1', 'cnspy_trajectory_evaluation>=0.2.4', 'cnspy_ranging_evaluation>=0.2.6', 'cnspy_csv2dataframe>=0.2.2' ],
+    install_requires=['numpy', 'pandas', 'spatialmath-python', 'scipy', 'matplotlib', 'joblib', 'configparser', 'cnspy_numpy_utils', 'cnspy_timestamp_association>=0.2.1', 'cnspy_trajectory_evaluation>=0.2.5', 'cnspy_ranging_evaluation>=0.2.7', 'cnspy_csv2dataframe>=0.2.2' ],
     entry_points={
         'console_scripts': [
             'RelPoseMeasEvaluationTool = cnspy_relative_pose_evaluation.RelPoseMeasEvaluationTool:main',
@@ -40,6 +40,7 @@ setup(
             'ROSBag_TrueRelPoses = cnspy_relative_pose_evaluation.ROSBag_TrueRelPoses:main',
             'ROSBag_Poses2RelPoses = cnspy_relative_pose_evaluation.ROSBag_Poses2RelPoses:main',
             'ROSBag_ModifyRelPoses = cnspy_relative_pose_evaluation.ROSBag_ModifyRelPoses:main',
+            'ROSBag_Pose2AbsPoses = cnspy_relative_pose_evaluation.ROSBag_Pose2AbsPoses:main',
         ],
     },
 )
