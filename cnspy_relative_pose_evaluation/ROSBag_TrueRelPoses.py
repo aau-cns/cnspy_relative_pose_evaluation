@@ -35,11 +35,13 @@ import numpy as np
 from numpy import linalg as LA
 from spatialmath import UnitQuaternion, SO3, SE3, Quaternion, base, quaternion
 from spatialmath.base.quaternions import qslerp
-from cnspy_ranging_evaluation.ROSBag_TrueRanges import HistoryBuffer, get_key_from_value
+from cnspy_ranging_evaluation.HistoryBuffer import HistoryBuffer, get_key_from_value
+from cnspy_ranging_evaluation.ROSBag_Pose import ROSBag_Pose
 from std_msgs.msg import Header, Time
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformStamped
 
 from mrs_msgs.msg import PoseWithCovarianceArrayStamped, PoseWithCovarianceIdentified
+
 
 def interpolate_pose(pose_hist, timestamp, round_decimals=4):
     timestamp = round(timestamp, round_decimals)
@@ -93,11 +95,13 @@ def random_orientation(stddev_rad):
     ang = np.random.randn(1, 1)[0]*stddev_rad
     return axang2quat(ax, ang[0])
 
+
 def axang2quat(u, phi):
     u = u / np.linalg.norm(u)
     q_w = math.cos(phi*0.5)
     q_v = u * math.sin(phi*0.5)
     return UnitQuaternion(s=q_w, v=np.array(q_v)).unit()
+
 
 class ROSBag_TrueRelPoses:
     def __init__(self):
@@ -158,8 +162,8 @@ class ROSBag_TrueRelPoses:
                 return False
             if "sensor_orientations" not in dict_cfg:
                 print("[sensor_orientations] does not exist in fn=" + cfg)
-            if "sensor_topics" not in dict_cfg:
-                print("[sensor_topics] does not exist in fn=" + cfg)
+            if "true_pose_topics" not in dict_cfg:
+                print("[true_pose_topics] does not exist in fn=" + cfg)
                 return False
             if "relpose_topics" not in dict_cfg:
                 print("[relpose_topics] does not exist in fn=" + cfg)
@@ -169,7 +173,7 @@ class ROSBag_TrueRelPoses:
             print("configuration contains:")
             print("sensor_positions:" + str(dict_cfg["sensor_positions"]))
             print("sensor_orientations:" + str(dict_cfg["sensor_orientations"]))
-            print("sensor_topics:" + str(dict_cfg["sensor_topics"]))
+            print("true_pose_topics:" + str(dict_cfg["true_pose_topics"]))
             print("relpose_topics:" + str(dict_cfg["relpose_topics"]))
 
         info_dict = yaml.load(bag._get_yaml_info(), Loader=yaml.FullLoader)
@@ -180,18 +184,12 @@ class ROSBag_TrueRelPoses:
             bag.close()
             return False
 
-        ## create csv file according to the topic names:
-        dict_file_writers = dict()
-        dict_header_written = dict()
-        dict_csvfile_hdls = dict()
-        idx = 0
-
         ## check if desired topics are in the bag file:
         num_messages = info_dict['messages']
         bag_topics = info_dict['topics']
 
         # check if desired topics are in
-        for id, topicName in dict_cfg["sensor_topics"].items():
+        for id, topicName in dict_cfg["true_pose_topics"].items():
             found_ = False
             for topic_info in bag_topics:
                 if topic_info['topic'] == topicName:
@@ -211,84 +209,21 @@ class ROSBag_TrueRelPoses:
 
         ## store the BODY SENSOR pose in a dictionary
         dict_T_BODY_SENSOR = dict() # map<topic, SE3>
-        dict_poses = dict() # map<topic<timestamp, SE3>>
         for ID, sensor_pos in dict_cfg["sensor_positions"].items():
             t_BT = np.array(sensor_pos)
             q_BT = UnitQuaternion()
             if ID in dict_cfg["sensor_orientations"].keys():
                 # expecting: w,x,y,z
-                q_vec =  np.array(dict_cfg["sensor_orientations"][ID])
+                q_vec = np.array(dict_cfg["sensor_orientations"][ID])
                 q_BT = UnitQuaternion(q_vec).unit()
                 pass
-            dict_T_BODY_SENSOR[dict_cfg["sensor_topics"][ID]] = SE3.Rt(q_BT.R, t_BT, check=True)
-            dict_poses[dict_cfg["sensor_topics"][ID]] = dict()
-            #print("ROSBag_TrueRelPoses: body sensor pose T(" + str(ID) + ")= " + str(dict_T_BODY_SENSOR[dict_cfg["sensor_topics"][ID]] ))
+            dict_T_BODY_SENSOR[dict_cfg["true_pose_topics"][ID]] = SE3.Rt(q_BT.R, t_BT, check=True)
 
         ## extract the poses of the desired topics from the BAG file
         round_decimals = 6
-        try:  # else already exists
-            print("ROSBag_TrueRelPoses: extracting poses...")
-            cnt_poses = 0
-            for topic, msg, t in tqdm(bag.read_messages(), total=num_messages, unit="msgs"):
-                if topic in dict_cfg["sensor_topics"].values():
-                    T_GLOBAL_BODY = None
-                    if hasattr(msg, 'header') and hasattr(msg, 'pose') and hasattr(msg, 'twist'):  # nav_msgs/Odometry Message
-                        p = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z])
-                        q_GB = [msg.pose.pose.orientation.w, msg.pose.pose.orientation.x, msg.pose.pose.orientation.y,
-                                msg.pose.pose.orientation.z]
+        # map<true_pose_topic,History<timestamp, SE3>>
+        dict_history = ROSBag_Pose.extract_poses(bag, num_messages, dict_cfg["true_pose_topics"], dict_cfg["true_pose_topics"], round_decimals, dict_T_BODY_SENSOR)
 
-                        q = UnitQuaternion(q_GB).unit()
-                        T_GLOBAL_BODY = SE3.Rt(q.R, p, check=True)
-                        pass
-                    elif hasattr(msg, 'header') and hasattr(msg, 'pose'):  # POSE_STAMPED
-                        p = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
-                        q_GB = [msg.pose.orientation.w, msg.pose.orientation.x, msg.pose.orientation.y,
-                                msg.pose.orientation.z]
-
-                        q = UnitQuaternion(q_GB).unit()
-                        T_GLOBAL_BODY = SE3.Rt(q.R, p, check=True)
-                        pass
-                    elif hasattr(msg, 'header') and hasattr(msg, 'transform'):
-                        p = np.array(
-                            [msg.transform.translation.x, msg.transform.translation.y, msg.transform.translation.z])
-                        q_GB = [msg.transform.rotation.w, msg.transform.rotation.x, msg.transform.rotation.y,
-                                msg.transform.rotation.z]
-                        q = UnitQuaternion(q_GB).unit()
-                        T_GLOBAL_BODY = SE3.Rt(q.R, p, check=True)
-                    else:
-                        print("\nROSBag_TrueRelPoses: unsupported message " + str(msg))
-                        continue
-
-                    if T_GLOBAL_BODY is not None:
-                        timestamp = round(msg.header.stamp.to_sec(), round_decimals)
-                        T_BODY_SENSOR = dict_T_BODY_SENSOR[topic]
-                        dict_poses[topic][timestamp] = T_GLOBAL_BODY * T_BODY_SENSOR
-                        cnt_poses = cnt_poses + 1
-                        pass
-                pass
-
-            if cnt_poses == 0:
-                print("\nROSBag_TrueRelPoses: no poses obtained!")
-                return False
-            else:
-                print("\nROSBag_TrueRelPoses: poses extractd: " + str(cnt_poses))
-
-        except AssertionError as error:
-            print(error)
-            print(
-                "ROSBag_TrueRelPoses: Unexpected error while reading the bag file!\n * try: $ rosbag fix <bagfile> <fixed>")
-            return False
-
-        ## convert poses to History
-        dict_history = dict() # map<topic, history>
-        for topic, poses in dict_poses.items():
-            dict_history[topic] = HistoryBuffer(dict_t=poses)
-
-        noise_pos_arr = np.random.normal(0, stddev_pos,
-                                               size=(3,num_messages))  # 1000 samples with normal distribution
-
-
-        ## TODO:
         cnt = 0
         try:  # else already exists
             print("ROSBag_TrueRelPoses: computing new relative pose measurements...")
@@ -302,15 +237,14 @@ class ROSBag_TrueRelPoses:
                         msg_gt = PoseWithCovarianceArrayStamped()
                         msg_gt.header = msg.header
 
-
                         for relpose in msg.poses: # id, pose, covariance
                             ID2 = relpose.id
-                            if ID2 in dict_cfg["sensor_topics"].keys():
-                                #ID2 = get_key_from_value(dict_cfg["sensor_topics"], topic2)
+                            if ID2 in dict_cfg["true_pose_topics"].keys():
+                                #ID2 = get_key_from_value(dict_cfg["true_pose_topics"], topic2)
 
-                                T_GLOBAL_SENSOR1 = interpolate_pose(dict_history[dict_cfg["sensor_topics"][ID1]],
+                                T_GLOBAL_SENSOR1 = interpolate_pose(dict_history[dict_cfg["true_pose_topics"][ID1]],
                                                                     timestamp, round_decimals)
-                                T_GLOBAL_SENSOR2 = interpolate_pose(dict_history[dict_cfg["sensor_topics"][ID2]],
+                                T_GLOBAL_SENSOR2 = interpolate_pose(dict_history[dict_cfg["true_pose_topics"][ID2]],
                                                                     timestamp, round_decimals)
 
                                 if T_GLOBAL_SENSOR1 is not None and T_GLOBAL_SENSOR2 is not None:
