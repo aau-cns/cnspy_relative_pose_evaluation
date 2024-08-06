@@ -69,6 +69,7 @@ class ROSBag_Pose2AbsPoses:
                 stddev_or=0.0,
                 use_header_timestamp=False,
                 verbose=False,
+                replace_with_new_topic=False
                 ):
 
         if not os.path.isfile(bagfile_in):
@@ -203,8 +204,8 @@ class ROSBag_Pose2AbsPoses:
                     if topic in dict_cfg["sensor_topics"].values() and hasattr(msg, 'poses') and hasattr(msg, 'header'):
                         id_topic = get_key_from_value(dict_cfg["sensor_topics"], topic)
                         timestamp = msg.header.stamp.to_sec()
-                        msg_gt = PoseWithCovarianceStamped()
-                        msg_gt.header = msg.header
+                        msg_new = PoseWithCovarianceStamped()
+                        msg_new.header = msg.header
 
                         pose_type = PoseTypes(dict_cfg["pose_types"][id_topic])
                         # check if the topic should be renamed.
@@ -212,6 +213,13 @@ class ROSBag_Pose2AbsPoses:
                         if "new_sensor_topics" in dict_cfg:
                             if dict_cfg["new_sensor_topics"][id_topic]:
                                 topic_out = dict_cfg["new_sensor_topics"][id_topic]
+
+                                if not replace_with_new_topic:
+                                    # store original message, otherwise it gets lost:
+                                    if use_header_timestamp and hasattr(msg, "header"):
+                                        outbag.write(topic_out, msg, msg.header.stamp)
+                                    else:
+                                        outbag.write(topic_out, msg, t)
 
                         T_GLOBAL_SENSOR1 = interpolate_pose(dict_history[topic], timestamp, round_decimals)
                         if T_GLOBAL_SENSOR1 is not None:
@@ -235,44 +243,44 @@ class ROSBag_Pose2AbsPoses:
                                 q = UnitQuaternion(R_)
                                 qv = q.vec
 
-                                msg_gt.pose.pose.position.x = p[0]
-                                msg_gt.pose.pose.position.y = p[1]
-                                msg_gt.pose.pose.position.z = 0
-                                msg_gt.pose.pose.orientation.w = qv[0]
-                                msg_gt.pose.pose.orientation.x = qv[1]
-                                msg_gt.pose.pose.orientation.y = qv[2]
-                                msg_gt.pose.pose.orientation.z = qv[3]
+                                msg_new.pose.pose.position.x = p[0]
+                                msg_new.pose.pose.position.y = p[1]
+                                msg_new.pose.pose.position.z = 0
+                                msg_new.pose.pose.orientation.w = qv[0]
+                                msg_new.pose.pose.orientation.x = qv[1]
+                                msg_new.pose.pose.orientation.y = qv[2]
+                                msg_new.pose.pose.orientation.z = qv[3]
 
                                 if stddev_pos > 0:
                                     # upper left block
                                     for idx in [0, 7]:
-                                        msg_gt.pose.covariance[idx] = var_pos
+                                        msg_new.pose.covariance[idx] = var_pos
                                 if stddev_or > 0:
                                     # lower right block
 
                                     for idx in [35]:
-                                        msg_gt.pose.covariance[idx] = var_or
+                                        msg_new.pose.covariance[idx] = var_or
                             elif pose_type is PoseTypes.SE3:
                                 qv = q.vec
 
-                                msg_gt.pose.pose.position.x = p[0]
-                                msg_gt.pose.pose.position.y = p[1]
-                                msg_gt.pose.pose.position.z = p[2]
-                                msg_gt.pose.pose.orientation.w = qv[0]
-                                msg_gt.pose.pose.orientation.x = qv[1]
-                                msg_gt.pose.pose.orientation.y = qv[2]
-                                msg_gt.pose.pose.orientation.z = qv[3]
+                                msg_new.pose.pose.position.x = p[0]
+                                msg_new.pose.pose.position.y = p[1]
+                                msg_new.pose.pose.position.z = p[2]
+                                msg_new.pose.pose.orientation.w = qv[0]
+                                msg_new.pose.pose.orientation.x = qv[1]
+                                msg_new.pose.pose.orientation.y = qv[2]
+                                msg_new.pose.pose.orientation.z = qv[3]
                                 if stddev_pos > 0:
                                     # upper left block
                                     var_pos = stddev_pos*stddev_pos
 
                                     for idx in [0, 7, 14]:
-                                        msg_gt.pose.covariance[idx] = var_pos
+                                        msg_new.pose.covariance[idx] = var_pos
                                 if stddev_or > 0:
                                     # lower right block
                                     var_or = stddev_or * stddev_or
                                     for idx in [21, 28, 35]:
-                                        msg_gt.pose.covariance[idx] = var_or
+                                        msg_new.pose.covariance[idx] = var_or
                             elif pose_type is PoseTypes.Pos3DYaw:
                                 rpy = base.tr2rpy(T=q.R, unit='rad', order='zyx')
                                 rpy[0] = 0
@@ -281,31 +289,31 @@ class ROSBag_Pose2AbsPoses:
                                 q = UnitQuaternion(R_)
                                 qv = q.vec
 
-                                msg_gt.pose.pose.position.x = p[0]
-                                msg_gt.pose.pose.position.y = p[1]
-                                msg_gt.pose.pose.position.z = p[2]
-                                msg_gt.pose.pose.orientation.w = qv[0]
-                                msg_gt.pose.pose.orientation.x = qv[1]
-                                msg_gt.pose.pose.orientation.y = qv[2]
-                                msg_gt.pose.pose.orientation.z = qv[3]
+                                msg_new.pose.pose.position.x = p[0]
+                                msg_new.pose.pose.position.y = p[1]
+                                msg_new.pose.pose.position.z = p[2]
+                                msg_new.pose.pose.orientation.w = qv[0]
+                                msg_new.pose.pose.orientation.x = qv[1]
+                                msg_new.pose.pose.orientation.y = qv[2]
+                                msg_new.pose.pose.orientation.z = qv[3]
 
                                 if stddev_pos > 0:
                                     # upper left block
                                     for idx in [0, 7, 14]:
-                                        msg_gt.pose.covariance[idx] = var_pos
+                                        msg_new.pose.covariance[idx] = var_pos
                                 if stddev_or > 0:
                                     # lower right block
 
                                     for idx in [35]:
-                                        msg_gt.pose.covariance[idx] = var_or
+                                        msg_new.pose.covariance[idx] = var_or
                             else:
                                 print("ROSBag_Pose2AbsPoses: unsupported PoseTypes!")
                                 return False
                             # for id2
                             if use_header_timestamp and hasattr(msg, "header"):
-                                outbag.write(topic_out, msg_gt, msg.header.stamp)
+                                outbag.write(topic_out, msg_new, msg.header.stamp)
                             else:
-                                outbag.write(topic_out, msg_gt, t)
+                                outbag.write(topic_out, msg_new, t)
                             cnt += 1
                         pass
                     else:
@@ -349,6 +357,9 @@ def main():
                         default=0.0)
     parser.add_argument('--use_header_timestamp', action='store_true',
                         help='overwrites the bag time with the header time stamp', default=False)
+    parser.add_argument('--replace_with_new_topic', action='store_true',
+                        help='removes sensor_topic if a new_sensor_topic was specified', default=False)
+
 
     tp_start = time.time()
     args = parser.parse_args()
@@ -359,7 +370,8 @@ def main():
                                     verbose=args.verbose,
                                     stddev_pos=float(args.std_pos),
                                     stddev_or=float(args.std_or),
-                                    use_header_timestamp=args.use_header_timestamp):
+                                    use_header_timestamp=args.use_header_timestamp,
+                                    replace_with_new_topic=args.replace_with_new_topic):
         print(" ")
         print("finished after [%s sec]\n" % str(time.time() - tp_start))
     else:
