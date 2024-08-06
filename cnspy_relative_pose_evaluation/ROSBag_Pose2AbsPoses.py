@@ -88,6 +88,7 @@ class ROSBag_Pose2AbsPoses:
             print("* stddev_pos: " + str(stddev_pos))
             print("* stddev_or: " + str(stddev_or))
             print("* use_header_timestamp: " + str(use_header_timestamp))
+            print("* replace_with_new_topic: " + str(replace_with_new_topic))
 
         ## Open BAG file:
         try:
@@ -201,7 +202,7 @@ class ROSBag_Pose2AbsPoses:
             print("ROSBag_Pose2AbsPoses: computing new absolute pose measurements of a certain type at given senor_topics")
             with rosbag.Bag(bagfile_out, 'w') as outbag:
                 for topic, msg, t in tqdm(bag.read_messages(), total=num_messages, unit="msgs"):
-                    if topic in dict_cfg["sensor_topics"].values() and hasattr(msg, 'poses') and hasattr(msg, 'header'):
+                    if topic in dict_cfg["sensor_topics"].values():
                         id_topic = get_key_from_value(dict_cfg["sensor_topics"], topic)
                         timestamp = msg.header.stamp.to_sec()
                         msg_new = PoseWithCovarianceStamped()
@@ -211,16 +212,18 @@ class ROSBag_Pose2AbsPoses:
                         # check if the topic should be renamed.
                         topic_out = topic
                         if "new_sensor_topics" in dict_cfg:
-                            if dict_cfg["new_sensor_topics"][id_topic]:
+                            if id_topic in dict_cfg["new_sensor_topics"]:
                                 topic_out = dict_cfg["new_sensor_topics"][id_topic]
 
                                 if not replace_with_new_topic:
                                     # store original message, otherwise it gets lost:
                                     if use_header_timestamp and hasattr(msg, "header"):
-                                        outbag.write(topic_out, msg, msg.header.stamp)
+                                        outbag.write(topic, msg, msg.header.stamp)
                                     else:
-                                        outbag.write(topic_out, msg, t)
-
+                                        outbag.write(topic, msg, t)
+                            else:
+                                print("No new_sensor_topic with ID=[" + str(id_topic) + "] found!")
+                                return False
                         T_GLOBAL_SENSOR1 = interpolate_pose(dict_history[topic], timestamp, round_decimals)
                         if T_GLOBAL_SENSOR1 is not None:
                             p = T_GLOBAL_SENSOR1.t
@@ -311,7 +314,7 @@ class ROSBag_Pose2AbsPoses:
                                 return False
                             # for id2
                             if use_header_timestamp and hasattr(msg, "header"):
-                                outbag.write(topic_out, msg_new, msg.header.stamp)
+                                outbag.write(topic_out, msg_new, msg_new.header.stamp)
                             else:
                                 outbag.write(topic_out, msg_new, t)
                             cnt += 1
