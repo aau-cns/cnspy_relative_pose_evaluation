@@ -115,6 +115,7 @@ class ROSBag_TrueRelPoses:
                 stddev_or=0.0,
                 use_header_timestamp=False,
                 verbose=False,
+                replace_with_new_topic=False
                 ):
 
         if not os.path.isfile(bagfile_in_name):
@@ -133,6 +134,7 @@ class ROSBag_TrueRelPoses:
             print("* stddev_pos: " + str(stddev_pos))
             print("* stddev_or: " + str(stddev_or))
             print("* use_header_timestamp: " + str(use_header_timestamp))
+            print("* replace_with_new_topic: " + str(replace_with_new_topic))
 
         ## Open BAG file:
         try:
@@ -168,6 +170,8 @@ class ROSBag_TrueRelPoses:
             if "relpose_topics" not in dict_cfg:
                 print("[relpose_topics] does not exist in fn=" + cfg)
                 return False
+            if "new_relpose_topics" not in dict_cfg:
+                print("[new_relpose_topics] does not exist in fn=" + cfg)
             print("Read successful")
         if verbose:
             print("configuration contains:")
@@ -222,7 +226,12 @@ class ROSBag_TrueRelPoses:
         ## extract the poses of the desired topics from the BAG file
         round_decimals = 6
         # map<true_pose_topic,History<timestamp, SE3>>
-        dict_history = ROSBag_Pose.extract_poses(bag, num_messages, dict_cfg["true_pose_topics"], dict_cfg["true_pose_topics"], round_decimals, dict_T_BODY_SENSOR)
+        dict_history = ROSBag_Pose.extract_poses(bag,
+                                                 num_messages,
+                                                 dict_cfg["true_pose_topics"],
+                                                 dict_cfg["true_pose_topics"],
+                                                 round_decimals,
+                                                 dict_T_BODY_SENSOR)
 
         cnt = 0
         try:  # else already exists
@@ -284,10 +293,26 @@ class ROSBag_TrueRelPoses:
                                     msg_gt.poses.append(pos_id)
                             idx_pose += 1
                         # for id2
+                        topic_out = topic
+                        if "new_relpose_topics" in dict_cfg:
+                            id_topic = ID1
+                            if id_topic in dict_cfg["new_relpose_topics"]:
+                                # assign new topic name
+                                topic_out = dict_cfg["new_relpose_topics"][id_topic]
+                                if not replace_with_new_topic:
+                                    # store original message, otherwise it gets lost:
+                                    if use_header_timestamp and hasattr(msg, "header"):
+                                        outbag.write(topic, msg, msg.header.stamp)
+                                    else:
+                                        outbag.write(topic, msg, t)
+                            else:
+                                print("No new_relpose_topics with ID=[" + str(id_topic) + "] found!")
+                                return False
+
                         if use_header_timestamp and hasattr(msg, "header"):
-                            outbag.write(topic, msg_gt, msg.header.stamp)
+                            outbag.write(topic_out, msg_gt, msg.header.stamp)
                         else:
-                            outbag.write(topic, msg_gt, t)
+                            outbag.write(topic_out, msg_gt, t)
                         cnt += 1
 
                     else:
@@ -321,22 +346,28 @@ class ROSBag_TrueRelPoses:
 def main():
     # example: ROSBag_Pose2Ranges.py --bagfile ../test/sample_data//uwb_calib_a01_2023-08-31-21-05-46.bag --topic /d01/mavros/vision_pose/pose --cfg ../test/sample_data/config.yaml --verbose
     parser = argparse.ArgumentParser(
-        description='ROSBag_TrueRelPoses: extract given pose topics and compute for each relative poses measurement a true pose, which is stored into a CSV file')
+        description='ROSBag_TrueRelPoses: extract given pose topics and compute for each relative poses measurement a' +
+                    'true relative pose (which can be perturbed), which overwrites to original message or is stored ' +
+                    'under a new topic in the specified bag file.')
     parser.add_argument('--bagfile_in', help='input bag file', required=True)
     parser.add_argument('--bagfile_out', help='output bag file', default="")
     parser.add_argument('--cfg',
-                        help='YAML configuration file describing the setup: {rel_tag_positions, abs_anchor_positions}',
+                        help='YAML configuration file describing the setup: ' +
+                             '{sensor_positions:{<id>:[x,y,z], ...}, sensor_orientations:{<id>:[w,x,y,z], ...}, ' +
+                             'relpose_topics:{<id>:<topic_name>, ...}, true_pose_topics:{<id>:<topic_name>, ...},' +
+                             ' new_relpose_topics:{<id>:<topic_name>, ...}}',
                         default="config.yaml", required=True)
     parser.add_argument('--verbose', action='store_true', default=False)
     parser.add_argument('--std_pos',
-                        help='standard deviation of generated measurements: z = d + white_noise(std_range)',
+                        help='standard deviation of generated measurements: z_p = p + white_noise(std_p)',
                         default=0.0)
     parser.add_argument('--std_or',
-                        help='standard deviation of generated measurements: z = d + white_noise(std_range)',
+                        help='standard deviation of generated measurements: z_R = R *R(white_noise(std_or))',
                         default=0.0)
     parser.add_argument('--use_header_timestamp', action='store_true',
                         help='overwrites the bag time with the header time stamp', default=False)
-
+    parser.add_argument('--replace_with_new_topic', action='store_true',
+                        help='removes relpose_topics if a new_relpose_topics was specified', default=False)
     tp_start = time.time()
     args = parser.parse_args()
 

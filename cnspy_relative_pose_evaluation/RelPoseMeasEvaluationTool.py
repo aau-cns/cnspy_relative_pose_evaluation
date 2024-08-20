@@ -67,8 +67,8 @@ class RelPoseMeasEvaluationTool:
         dict_cfg = None
         with open(cfg, "r") as yamlfile:
             dict_cfg = yaml.load(yamlfile, Loader=yaml.FullLoader)
-            if "sensor_topics" not in dict_cfg:
-                print("[sensor_topics] does not exist in fn=" + cfg)
+            if "true_pose_topics" not in dict_cfg:
+                print("[true_pose_topics] does not exist in fn=" + cfg)
                 return False
             if "relpose_topics" not in dict_cfg:
                 print("[relpose_topics] does not exist in fn=" + cfg)
@@ -77,7 +77,7 @@ class RelPoseMeasEvaluationTool:
 
         Sensor_ID_arr = []
         topic_list = []
-        for key, val in dict_cfg["sensor_topics"].items():
+        for key, val in dict_cfg["true_pose_topics"].items():
             topic_list.append(val)
         for key, val in dict_cfg["relpose_topics"].items():
             topic_list.append(val)
@@ -180,7 +180,7 @@ def main():
                         default='')
     parser.add_argument('--bagfile', help='input bag file', default="not specified")
     parser.add_argument('--cfg',
-                        help='YAML configuration file describing the setup: {sensor_topics, sensor_positions, sensor_orientations, relpose_topics}',
+                        help='YAML configuration file describing the setup: {true_pose_topics, sensor_positions, sensor_orientations, relpose_topics}',
                         default="config.yaml", required=True)
     parser.add_argument('--save_plot', action='store_true', default=False)
     parser.add_argument('--show_plot', action='store_true', default=False)

@@ -3,5 +3,7 @@ sensor_positions: {0:[0, 0, 0], 1:[0, 0, 0], 2:[0, 0, 0]}
 sensor_orientations: {0:[1.0, 0, 0, 0], 1:[1.0, 0, 0, 0], 2:[1.0, 0, 0, 0]}
 # true pose of the body
 true_pose_topics: {0: "/uav10/vrpn_client/raw_pose", 1: "/uav11/vrpn_client/raw_pose", 2: "/uav12/vrpn_client/raw_pose"}
-# topcis of the relative pose measurement
+# topics of the relative pose measurement
 relpose_topics: {0: "/uav10/data_handler/uvdar_fcu", 1: "/uav11/data_handler/uvdar_fcu", 2: "/uav12/data_handler/uvdar_fcu"}
+# topics of the synthetic relative pose measurement
+new_relpose_topics: {0: "/uav10/data_handler/uvdar_fcu_syn", 1: "/uav11/data_handler/uvdar_fcu_syn", 2: "/uav12/data_handler/uvdar_fcu_syn"}
