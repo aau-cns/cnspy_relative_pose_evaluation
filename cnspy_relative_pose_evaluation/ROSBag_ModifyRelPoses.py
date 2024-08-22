@@ -218,7 +218,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='ROSBag_ModifyRelPoses: extract given pose topics and modify them')
     parser.add_argument('--bagfile_in', help='input bag file', required=True)
-    parser.add_argument('--bagfile_out', help='output bag file', default="")
+    parser.add_argument('--bagfile_out', help='output bag file', required=True)
     parser.add_argument('--cfg',
                         help='YAML configuration file describing the setup: {rel_tag_positions, abs_anchor_positions}',
                         default="config.yaml", required=True)

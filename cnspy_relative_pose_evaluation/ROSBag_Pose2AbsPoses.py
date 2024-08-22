@@ -349,12 +349,12 @@ def main():
                     'absolute pose measurement (which can be perturbed) of a specific type which is added to a ' +
                     'new bag file')
     parser.add_argument('--bagfile_in', help='input bag file', required=True)
-    parser.add_argument('--bagfile_out', help='output bag file', default="")
+    parser.add_argument('--bagfile_out', help='output bag file', required=True)
     parser.add_argument('--cfg',
                         help='YAML configuration file describing the setup: ' +
                              '{sensor_positions:{<id>:[x,y,z], ...}, sensor_orientations:{<id>:[w,x,y,z], ...}, ' +
                              'sensor_topics:{<id>:<topic_name>, ...}, true_pose_topics:{<id>:<topic_name>, ...}, ' +
-                             'new_sensor_topics:{<id>:<topic_name>, ...}, pose_types:{<id>:<SE2, SE3, or PosYaw>, ...}',
+                             'new_sensor_topics:{<id>:<topic_name>, ...}, pose_types:{<id>:<SE2, SE3, or Pos3DYaw>, ...}',
                         default="config.yaml", required=True)
     parser.add_argument('--verbose', action='store_true', default=False)
     parser.add_argument('--std_pos',

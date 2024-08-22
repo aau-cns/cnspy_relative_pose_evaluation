@@ -150,17 +150,16 @@ class EvaluationTrail:
         sequence = 'static_test'
         bagfile_in = str(SAMPLE_DATA_DIR + '/' + sequence + '.bag')
 
-        sequence = "two_spiral_one_hovers"
-        bagfile_in = "/home/jungr/workspace/datasets/uvdar_dataset/merged_medium/two_spiral_one_hovers.bag"
-
         cfg_file = str(SAMPLE_DATA_DIR + '/config.yaml')
         RelPoseMeasEvaluationTool.evaluate(bagfile_in=bagfile_in,
-                                           cfg=cfg_file,
+                                           cfg_fn=cfg_file,
                                            result_dir=RES_DATA_DIR + "/" + sequence,
                                            save_plot=True,
                                            show_plot=False,
                                            verbose=True,
-                                           ID_arr=[0,1,2])
+                                           ID_arr=[0,1,2],
+                                           max_range=0,
+                                           max_angle=0)
 
     @staticmethod
     def test_RelPoseEval_gazebo():
@@ -169,7 +168,7 @@ class EvaluationTrail:
 
         cfg_file = str(SAMPLE_DATA_DIR + '/config_gazebo.yaml')
         RelPoseMeasEvaluationTool.evaluate(bagfile_in=bagfile_in,
-                                           cfg=cfg_file,
+                                           cfg_fn=cfg_file,
                                            result_dir=RES_DATA_DIR + "/" + sequence,
                                            save_plot=True,
                                            show_plot=False,
@@ -183,7 +182,7 @@ class EvaluationTrail:
 
         cfg_file = str(SAMPLE_DATA_DIR + '/config.yaml')
         RelPoseMeasEvaluationTool.evaluate(bagfile_in=bagfile_in,
-                                           cfg=cfg_file,
+                                           cfg_fn=cfg_file,
                                            result_dir=RES_DATA_DIR + "/" + sequence + "_noisy",
                                            save_plot=True,
                                            show_plot=False,
@@ -236,5 +235,5 @@ if __name__ == "__main__":
      #EvaluationTrail.test_ROSBag_TrueRelPoses_noise()
      #EvaluationTrail.test_RelPoseEval_same()
      #EvaluationTrail.test_RPLIDAR()
-     EvaluationTrail.test_RelPoseEval_synthetic_abspos()
-
+     #EvaluationTrail.test_RelPoseEval_synthetic_abspos()
+     EvaluationTrail.test_RelPoseEval()

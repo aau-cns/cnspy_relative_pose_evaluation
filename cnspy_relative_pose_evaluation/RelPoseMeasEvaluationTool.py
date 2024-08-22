@@ -41,7 +41,7 @@ from cnspy_relative_pose_evaluation.RelPoseMeasEvaluation import RelPoseMeasEval
 
 class RelPoseMeasEvaluationTool:
     @staticmethod
-    def evaluate(bagfile_in, cfg, result_dir=None, verbose=True, show_plot=True, save_plot=True,
+    def evaluate(bagfile_in, cfg_fn, result_dir=None, verbose=True, show_plot=True, save_plot=True,
                  ID_arr=None, filter_histogram=True, extra_plots = True, max_range=None, max_angle=None,
                  remove_outliers=True):
         if not os.path.isfile(bagfile_in):
@@ -65,14 +65,17 @@ class RelPoseMeasEvaluationTool:
             print("* result_dir: \t " + str(folder))
 
         dict_cfg = None
-        with open(cfg, "r") as yamlfile:
+        with open(cfg_fn, "r") as yamlfile:
             dict_cfg = yaml.load(yamlfile, Loader=yaml.FullLoader)
             if "true_pose_topics" not in dict_cfg:
-                print("[true_pose_topics] does not exist in fn=" + cfg)
+                print("[true_pose_topics] does not exist in fn=" + cfg_fn)
                 return False
             if "relpose_topics" not in dict_cfg:
-                print("[relpose_topics] does not exist in fn=" + cfg)
+                print("[relpose_topics] does not exist in fn=" + cfg_fn)
                 return False
+            #if "new_relpose_topics" not in dict_cfg:
+            #    print("[new_relpose_topics] was specified and is currently NOT SUPPORTED (please remove or comment it out) in fn=" + cfg_fn)
+            #    return False
             print("Successfully read YAML config file.")
 
         Sensor_ID_arr = []
@@ -98,11 +101,11 @@ class RelPoseMeasEvaluationTool:
         # 1) extract all measurements to CSV
         if not os.path.isfile(fn_meas_ranges):
             res = RelPose_ROSBag2CSV.extract_to_one(bagfile_name=bagfile_in,
-                                                cfg=cfg,
-                                                fn=fn_meas_ranges,
-                                                result_dir=result_dir,
-                                                verbose=verbose,
-                                                with_cov=True)
+                                                    cfg=cfg_fn,
+                                                    fn=fn_meas_ranges,
+                                                    result_dir=result_dir,
+                                                    verbose=verbose,
+                                                    with_cov=True)
 
 
 
@@ -111,34 +114,35 @@ class RelPoseMeasEvaluationTool:
         # 2) create a clean bag file
         if not os.path.isfile(bagfile_out):
             res = ROSBag_TrueRelPoses.extract(bagfile_in_name=bagfile_in,
-                                            bagfile_out_name=bagfile_out,
-                                            cfg=cfg,
-                                            verbose=verbose,
-                                            use_header_timestamp=False,
-                                            stddev_pos=0.0)
+                                              bagfile_out_name=bagfile_out,
+                                              cfg=cfg_fn,
+                                              verbose=verbose,
+                                              use_header_timestamp=False,
+                                              ignore_new_topic_name=True,
+                                              stddev_pos=0.0)
 
         if not os.path.isfile(fn_gt_ranges):
             # 3) extract all measurements from the clean bagfile
             res = RelPose_ROSBag2CSV.extract_to_one(bagfile_name=bagfile_out,
-                                                cfg=cfg,
-                                                fn=fn_gt_ranges,
-                                                result_dir=result_dir,
-                                                verbose=verbose)
+                                                    cfg=cfg_fn,
+                                                    fn=fn_gt_ranges,
+                                                    result_dir=result_dir,
+                                                    verbose=verbose)
 
 
         # 4) evaluate the ranges
         cfg = AssociateRelPoseCfg(ID1=None,
-                                 ID2=None,
-                                 relative_timestamps=False,
-                                 max_difference=10**-4,
-                                 subsample=0,
-                                 verbose=verbose,
-                                 remove_outliers=remove_outliers,
-                                 range_error_val=0,
-                                 label_timestamp='t',
-                                 label_ID1='ID1',
-                                 label_ID2='ID2',
-                                 label_range='range')
+                                     ID2=None,
+                                     relative_timestamps=False,
+                                     max_difference=10**-4,
+                                     subsample=0,
+                                     verbose=verbose,
+                                     remove_outliers=remove_outliers,
+                                     range_error_val=0,
+                                     label_timestamp='t',
+                                     label_ID1='ID1',
+                                     label_ID2='ID2',
+                                     label_range='range')
 
         if max_range is not None:
             cfg.max_range_error = max_range
@@ -180,22 +184,24 @@ def main():
                         default='')
     parser.add_argument('--bagfile', help='input bag file', default="not specified")
     parser.add_argument('--cfg',
-                        help='YAML configuration file describing the setup: {true_pose_topics, sensor_positions, sensor_orientations, relpose_topics}',
+                        help='YAML configuration file describing the setup: ' +
+                             '{sensor_positions:{<id>:[x,y,z], ...}, sensor_orientations:{<id>:[w,x,y,z], ...}, ' +
+                             'relpose_topics:{<id>:<topic_name>, ...}, true_pose_topics:{<id>:<topic_name>, ...}',
                         default="config.yaml", required=True)
-    parser.add_argument('--save_plot', action='store_true', default=False)
-    parser.add_argument('--show_plot', action='store_true', default=False)
+    parser.add_argument('--save_plot', help='saves all plots in the result_dir', action='store_true', default=False)
+    parser.add_argument('--show_plot', help='blocks the evaluation, for inspecting individual plots, continuous after closing', action='store_true', default=False)
     parser.add_argument('--verbose', action='store_true', default=False)
-    parser.add_argument('--extra_plots', action='store_true', default=False)
-    parser.add_argument('--keep_outliers', action='store_true', default=False)
-    parser.add_argument('--filter_histogram', action='store_true', default=False)
-    parser.add_argument('--max_range', help='max. range that classifies them as outlier', default='30')
-    parser.add_argument('--max_angle', help='max. range that classifies them as outlier', default='6.3')
+    parser.add_argument('--extra_plots', help='plots: timestamps, ranges + angles (sorted + unsorted + error),  ', action='store_true', default=False)
+    parser.add_argument('--keep_outliers', help='do not apply the max. thresholds on the error',  action='store_true', default=False)
+    parser.add_argument('--filter_histogram', help='filters the error histogram, such that the fitted normal distribution is computed on the best bins only', action='store_true', default=False)
+    parser.add_argument('--max_range', help='max. range that classifies them as outlier (0 disables feature). ', default='0')
+    parser.add_argument('--max_angle', help='max. range that classifies them as outlier (0 disables feature)', default='0')
 
     tp_start = time.time()
     args = parser.parse_args()
 
     RelPoseMeasEvaluationTool.evaluate(bagfile_in=args.bagfile,
-                                       cfg=args.cfg,
+                                       cfg_fn=args.cfg,
                                        result_dir=args.result_dir,
                                        save_plot=args.save_plot,
                                        show_plot=args.show_plot,

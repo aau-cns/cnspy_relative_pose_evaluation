@@ -115,7 +115,8 @@ class ROSBag_TrueRelPoses:
                 stddev_or=0.0,
                 use_header_timestamp=False,
                 verbose=False,
-                replace_with_new_topic=False
+                replace_with_new_topic=False,
+                ignore_new_topic_name=False
                 ):
 
         if not os.path.isfile(bagfile_in_name):
@@ -172,13 +173,17 @@ class ROSBag_TrueRelPoses:
                 return False
             if "new_relpose_topics" not in dict_cfg:
                 print("[new_relpose_topics] does not exist in fn=" + cfg)
-            print("Read successful")
+            elif ignore_new_topic_name:
+                print("[new_relpose_topics] WILL BE IGNORED, but was specified in fn=" + cfg)
+            print("Configuration read successfully")
         if verbose:
             print("configuration contains:")
             print("sensor_positions:" + str(dict_cfg["sensor_positions"]))
             print("sensor_orientations:" + str(dict_cfg["sensor_orientations"]))
             print("true_pose_topics:" + str(dict_cfg["true_pose_topics"]))
             print("relpose_topics:" + str(dict_cfg["relpose_topics"]))
+            if "new_relpose_topics" in dict_cfg and not ignore_new_topic_name:
+                print("new_relpose_topics:" + str(dict_cfg["new_relpose_topics"]))
 
         info_dict = yaml.load(bag._get_yaml_info(), Loader=yaml.FullLoader)
 
@@ -294,7 +299,7 @@ class ROSBag_TrueRelPoses:
                             idx_pose += 1
                         # for id2
                         topic_out = topic
-                        if "new_relpose_topics" in dict_cfg:
+                        if "new_relpose_topics" in dict_cfg and not ignore_new_topic_name:
                             id_topic = ID1
                             if id_topic in dict_cfg["new_relpose_topics"]:
                                 # assign new topic name
@@ -350,7 +355,7 @@ def main():
                     'true relative pose (which can be perturbed), which overwrites to original message or is stored ' +
                     'under a new topic in the specified bag file.')
     parser.add_argument('--bagfile_in', help='input bag file', required=True)
-    parser.add_argument('--bagfile_out', help='output bag file', default="")
+    parser.add_argument('--bagfile_out', help='output bag file', required=True)
     parser.add_argument('--cfg',
                         help='YAML configuration file describing the setup: ' +
                              '{sensor_positions:{<id>:[x,y,z], ...}, sensor_orientations:{<id>:[w,x,y,z], ...}, ' +

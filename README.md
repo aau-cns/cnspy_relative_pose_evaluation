@@ -49,12 +49,12 @@ pip3 install cnspy_relative_pose_evaluation
 
 YAML configuration file is in the form of:
 ```yaml
-# relative pose of the moving sensors
+# relative pose of the moving sensors with respect to the body frame (pose from BODY to SENSOR)
 sensor_positions: {0:[0, 0, 0], 1:[0, 0, 0], 2:[0, 0, 0]}
 sensor_orientations: {0:[1.0, 0, 0, 0], 1:[1.0, 0, 0, 0], 2:[1.0, 0, 0, 0]}
 # true pose of the body
-sensor_topics: {0: "/uav10/vrpn_client/raw_pose", 1: "/uav11/vrpn_client/raw_pose", 2: "/uav12/vrpn_client/raw_pose"}
-# topcis of the relative pose measurement
+true_pose_topics: {0: "/uav10/vrpn_client/raw_pose", 1: "/uav11/vrpn_client/raw_pose", 2: "/uav12/vrpn_client/raw_pose"}
+# topics of the relative pose measurement
 relpose_topics: {0: "/uav10/data_handler/uvdar_fcu", 1: "/uav11/data_handler/uvdar_fcu", 2: "/uav12/data_handler/uvdar_fcu"}
 
 ```
@@ -68,7 +68,31 @@ The covariance of the measurements are assumed to represent the position uncerta
 
 Please check out: [ErrorRepresentationType](https://github.com/aau-cns/cnspy_spatial_csv_formats/blob/main/cnspy_spatial_csv_formats/ErrorRepresentationType.py) and [EstimationErrorType](https://github.com/aau-cns/cnspy_spatial_csv_formats/blob/main/cnspy_spatial_csv_formats/EstimationErrorType.py)
 
+## Usage
 
+```commandline
+usage: RelPoseMeasEvaluationTool.py [-h] [--result_dir RESULT_DIR] [--bagfile BAGFILE] --cfg CFG [--save_plot] [--show_plot] [--verbose] [--extra_plots] [--keep_outliers] [--filter_histogram] [--max_range MAX_RANGE] [--max_angle MAX_ANGLE]
+
+RelPoseMeasEvaluationTool: evaluation the measured relative poses
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --result_dir RESULT_DIR
+                        directory to store results [otherwise bagfile name will be a directory]
+  --bagfile BAGFILE     input bag file
+  --cfg CFG             YAML configuration file describing the setup: {sensor_positions:{<id>:[x,y,z], ...}, sensor_orientations:{<id>:[w,x,y,z], ...}, relpose_topics:{<id>:<topic_name>, ...}, true_pose_topics:{<id>:<topic_name>, ...}
+  --save_plot           saves all plots in the result_dir
+  --show_plot           blocks the evaluation, for inspecting individual plots, continuous after closing
+  --verbose
+  --extra_plots         plots: timestamps, ranges + angles (sorted + unsorted + error),
+  --keep_outliers       do not apply the max. thresholds on the error
+  --filter_histogram    filters the error histogram, such that the fitted normal distribution is computed on the best bins only
+  --max_range MAX_RANGE
+                        max. range that classifies them as outlier
+  --max_angle MAX_ANGLE
+                        max. range that classifies them as outlier
+
+```
 
 ## License
 
