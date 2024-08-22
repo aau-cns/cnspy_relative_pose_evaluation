@@ -140,11 +140,17 @@ class AssociateRelPoses(AssociateRanges):
             self.csv_df_gt[cfg.label_angle] = AssociateRelPoses.quat2ang_arr(self.csv_df_gt[['qw','qx', 'qy', 'qz']].to_numpy())
 
         if cfg.remove_outliers:
-            indices1 = np.nonzero(self.csv_df_est[cfg.label_range] < cfg.max_range)
+            if cfg.max_range > 0:
+                indices1 = np.nonzero(self.csv_df_est[cfg.label_range] < cfg.max_range)
+            else:
+                indices1 = np.array([])
             indices2 = np.nonzero(self.csv_df_est[cfg.label_range] > 0)
-            indices3 = np.nonzero(abs(self.csv_df_est[cfg.label_angle]) < cfg.max_angle)
+            if cfg.max_angle > 0:
+                indices3 = np.nonzero(abs(self.csv_df_est[cfg.label_angle]) < cfg.max_angle)
+            else:
+                indices3 = np.array([])
             idc = np.intersect1d(np.intersect1d(indices1, indices2), indices3)
-            num_outliers = len(self.csv_df_est.index) - len(idc)
+            num_outliers = len(idc)
             perc = 100.0*(num_outliers/max(1, len(self.csv_df_est.index)))
             if num_outliers:
                 self.csv_df_est = AssociateRanges.sample_DataFrame(self.csv_df_est, idc)
@@ -152,10 +158,12 @@ class AssociateRelPoses(AssociateRanges):
         else:
             indices = ((self.csv_df_est[cfg.label_range]) < 0)
             self.csv_df_est.loc[indices, cfg.label_range] = cfg.range_error_val
-            indices = (self.csv_df_est[cfg.label_range] > cfg.max_range)
-            self.csv_df_est.loc[indices, cfg.label_range] = cfg.range_error_val
-            indices = (self.csv_df_est[cfg.label_angle] > cfg.max_angle)
-            self.csv_df_est.loc[indices, cfg.label_angle] = cfg.angle_error_val
+            if cfg.max_range > 0:
+                indices = (self.csv_df_est[cfg.label_range] > cfg.max_range)
+                self.csv_df_est.loc[indices, cfg.label_range] = cfg.range_error_val
+            if cfg.max_angle > 0:
+                indices = (self.csv_df_est[cfg.label_angle] > cfg.max_angle)
+                self.csv_df_est.loc[indices, cfg.label_angle] = cfg.angle_error_val
         if cfg.subsample > 1:
             subsample = round(cfg.subsample, 0)
             self.csv_df_gt = AssociateRanges.subsample_DataFrame(df=self.csv_df_gt, step=subsample, verbose=cfg.verbose)
