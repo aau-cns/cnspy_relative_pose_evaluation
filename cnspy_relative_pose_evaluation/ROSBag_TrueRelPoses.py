@@ -43,7 +43,7 @@ from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformS
 from mrs_msgs.msg import PoseWithCovarianceArrayStamped, PoseWithCovarianceIdentified
 
 
-def interpolate_pose(pose_hist, timestamp, round_decimals=4):
+def interpolate_pose(pose_hist, timestamp, round_decimals=4) -> SE3:
     timestamp = round(timestamp, round_decimals)
     [ti, T_GLOBAL_BODY_Ti] = pose_hist.get_at_t(timestamp)
     if T_GLOBAL_BODY_Ti is None:
