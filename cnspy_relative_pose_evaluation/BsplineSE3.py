@@ -33,18 +33,17 @@ from cnspy_ranging_evaluation.HistoryBuffer import HistoryBuffer
 from cnspy_trajectory.SpatialConverter import SpatialConverter
 from cnspy_trajectory.Trajectory import Trajectory
 
-class InterpolationType(Enum):
-    CubicBspline_SE3 = 'CubicBspline_SE3' #  cubic b-spline to ensure C²-continuity
-    SPLIT_SE3 = 'SPLIT_SE3' # constant linear and angular velocity, no accelerations
+class TrajectoryInterpolationType(Enum):
+    cubic = 'cubic' #  cubic b-spline to ensure C²-continuity
+    linear = 'linear' # constant linear and angular velocity, no accelerations
 
     def __str__(self):
         return self.value
 
     @staticmethod
     def list():
-        return list([str(InterpolationType.CubicBspline_SE3),
-                     str(InterpolationType.SPLIT_SE3),
-                     str(InterpolationType.BsplineFit_SE3) ])
+        return list([str(TrajectoryInterpolationType.cubic),
+                     str(TrajectoryInterpolationType.linear)])
 
 
 # TODO: move to trajectory package, create a loader from a Trajectory, HistoryBuffer or DataFrame
@@ -60,10 +59,10 @@ class BsplineSE3:
             self.feed_trajectory(traj=traj, uniform_timestamps=True)
         pass
 
-    def get_pose(self, t, type=InterpolationType.CubicBspline_SE3, round_decimals=4) -> SE3:
-        if type == InterpolationType.CubicBspline_SE3:
+    def get_pose(self, t, interp_type=TrajectoryInterpolationType.cubic, round_decimals=4) -> SE3:
+        if interp_type == TrajectoryInterpolationType.cubic:
             return self.get_pose_CubicBspline(t, round_decimals)
-        elif type == InterpolationType.SPLIT_SE3:
+        elif interp_type == TrajectoryInterpolationType.linear:
             return self.get_pose_SPLIT(t, round_decimals)
         else:
             return None
@@ -131,16 +130,16 @@ class BsplineSE3:
         if T_ti is None:
             [t1, T_t1] = self.hist_ctrl_pts.get_before_t(timestamp)
             [t2, T_t2] = self.hist_ctrl_pts.get_after_t(timestamp)
-            if t1 and t2:
+            if T_t1 and T_t2:
                 return [True, T_t1, t1, T_t2, t2]
         else:
             # we found a pose, get another one after or before...
             [t2, T_t2] = self.hist_ctrl_pts.get_after_t(ti)
-            if t2:
+            if T_t2:
                 return [True, T_ti, ti, T_t2, t2]
             else:
                 [t1, T_t1] = self.hist_ctrl_pts.get_before_t(ti)
-                if t1:
+                if T_t1:
                     return [True, T_t1, t1, T_ti, ti]
 
         return [False, None, None, None, None]
@@ -150,12 +149,12 @@ class BsplineSE3:
         if success:
             [t1, T_t1] = self.hist_ctrl_pts.get_before_t(t2)
             [t4, T_t4] = self.hist_ctrl_pts.get_after_t(t3)
-            if t1 and t4:
+            if T_t1  and T_t4:
                 return [True, T_t1, t1, T_t2, t2, T_t3, t3, T_t4, t4]
 
         return [False, None, None, None, None, None, None, None, None]
 
-    def get_trajectory(self, t_arr, type=InterpolationType.CubicBspline_SE3, round_decimals=4):
+    def get_trajectory(self, t_arr, interp_type=TrajectoryInterpolationType.cubic, round_decimals=4):
         t_rows, t_cols = t_arr.shape
         p_vec = np.zeros((t_rows, 3))
         q_vec = np.hstack((np.zeros((t_rows, 3)), np.ones((t_rows, 1)) ))
@@ -163,7 +162,7 @@ class BsplineSE3:
         idx = 0
         for i in range(t_rows):
             t_i = round(t_arr[i, 0], round_decimals)
-            T_i = self.get_pose(t_i, type=type, round_decimals=round_decimals)
+            T_i = self.get_pose(t_i, interp_type=interp_type, round_decimals=round_decimals)
             if T_i:
                 [p,q] = SpatialConverter.SE3_to_p_q_HTMQ(T_i)
                 p_vec[idx, :] = p

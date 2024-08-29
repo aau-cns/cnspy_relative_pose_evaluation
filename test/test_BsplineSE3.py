@@ -34,13 +34,19 @@ class BsplineSE3_Test(unittest.TestCase):
 
         spline = BsplineSE3(traj=traj_sub)
 
-        traj_ = spline.get_trajectory(traj.t_vec)
+        traj_cubic = spline.get_trajectory(traj.t_vec, interp_type=TrajectoryInterpolationType.cubic)
+        traj_linear = spline.get_trajectory(traj.t_vec, interp_type=TrajectoryInterpolationType.linear)
 
         fig = plt.figure(figsize=(20, 15), dpi=int(300))
         ax = fig.add_subplot(111, projection='3d')
-        traj.plot_3D(fig=fig, ax=ax, cfg=TrajectoryPlotConfig(close_figure=False, show=False), num_markers=0)
-        traj_sub.plot_3D(fig=fig, ax=ax, cfg=TrajectoryPlotConfig(close_figure=False, show=False), num_markers=0)
-        traj_.plot_3D(fig=fig, ax=ax, cfg=TrajectoryPlotConfig(close_figure=False, show=True), num_markers=0)
+        traj.plot_3D(fig=fig, ax=ax, cfg=TrajectoryPlotConfig(close_figure=False, show=False), num_markers=0,
+                     ls=PlotLineStyle(linecolor='k', linestyle='-', linewidth=1, label='true'))
+        traj_sub.plot_3D(fig=fig, ax=ax, cfg=TrajectoryPlotConfig(close_figure=False, show=False,  plot_type=TrajectoryPlotTypes.scatter_3D), num_markers=0,
+                         ls=PlotLineStyle(linecolor='b', linestyle='-', linewidth=1, label='noisy ctrl pts', markersize=3, markerfacecolor='orange'))
+        traj_cubic.plot_3D(fig=fig, ax=ax, cfg=TrajectoryPlotConfig(close_figure=False, show=False), num_markers=0,
+                           ls=PlotLineStyle(linecolor='g', linestyle='-', linewidth=1, label='cubic'))
+        traj_linear.plot_3D(fig=fig, ax=ax, cfg=TrajectoryPlotConfig(close_figure=False, show=True), num_markers=0,
+                            ls=PlotLineStyle(linecolor='r', linestyle='-', linewidth=1, label='linear'))
 
 if __name__ == "__main__":
     unittest.main()
