@@ -20,25 +20,20 @@
 ########################################################################################################################
 import math
 import sys
-import traceback
-
-import spatialmath
 
 import rosbag
 import time
 import os
 import argparse
 import yaml
-import csv
 from tqdm import tqdm
 import numpy as np
-from numpy import linalg as LA
-from spatialmath import UnitQuaternion, SO3, SE3, Quaternion, base, quaternion
+from spatialmath import UnitQuaternion, SO3, SE3
 from spatialmath.base.quaternions import qslerp
-from cnspy_ranging_evaluation.HistoryBuffer import HistoryBuffer, get_key_from_value
+
+from cnspy_trajectory.BsplineSE3 import BsplineSE3, TrajectoryInterpolationType
+from cnspy_trajectory.HistoryBuffer import get_key_from_value
 from cnspy_ranging_evaluation.ROSBag_Pose import ROSBag_Pose
-from std_msgs.msg import Header, Time
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformStamped
 
 from mrs_msgs.msg import PoseWithCovarianceArrayStamped, PoseWithCovarianceIdentified
 
@@ -116,7 +111,8 @@ class ROSBag_TrueRelPoses:
                 use_header_timestamp=False,
                 verbose=False,
                 replace_with_new_topic=False,
-                ignore_new_topic_name=False
+                ignore_new_topic_name=False,
+                interp_type = TrajectoryInterpolationType.cubic
                 ):
 
         if not os.path.isfile(bagfile_in_name):
@@ -238,6 +234,15 @@ class ROSBag_TrueRelPoses:
                                                  round_decimals,
                                                  dict_T_BODY_SENSOR)
 
+        dict_bsplines = dict()
+        for true_pose_topic, hist in dict_history:
+            bspline = BsplineSE3()
+            if interp_type == TrajectoryInterpolationType.cubic:
+                bspline.feed_pose_history(hist_pose=hist)
+            elif interp_type == TrajectoryInterpolationType.linear:
+                bspline.feed_pose_history(hist_pose=hist, uniform_timestamps=False)
+            dict_bsplines[true_pose_topic] = bspline
+
         cnt = 0
         try:  # else already exists
             print("ROSBag_TrueRelPoses: computing new relative pose measurements...")
@@ -256,10 +261,12 @@ class ROSBag_TrueRelPoses:
                             if ID2 in dict_cfg["true_pose_topics"].keys():
                                 #ID2 = get_key_from_value(dict_cfg["true_pose_topics"], topic2)
 
-                                T_GLOBAL_SENSOR1 = interpolate_pose(dict_history[dict_cfg["true_pose_topics"][ID1]],
-                                                                    timestamp, round_decimals)
-                                T_GLOBAL_SENSOR2 = interpolate_pose(dict_history[dict_cfg["true_pose_topics"][ID2]],
-                                                                    timestamp, round_decimals)
+                                T_GLOBAL_SENSOR1 = dict_bsplines[dict_cfg["true_pose_topics"][ID1]].get_pose(t=timestamp,
+                                                                                                             interp_type=interp_type,
+                                                                                                             round_decimals=round_decimals)
+                                T_GLOBAL_SENSOR2 = dict_bsplines[dict_cfg["true_pose_topics"][ID2]].get_pose(t=timestamp,
+                                                                                                            interp_type=interp_type,
+                                                                                                            round_decimals=round_decimals)
 
                                 if T_GLOBAL_SENSOR1 is not None and T_GLOBAL_SENSOR2 is not None:
                                     T_SENSOR1_SENSOR2 = T_GLOBAL_SENSOR1.inv() * T_GLOBAL_SENSOR2
@@ -373,6 +380,8 @@ def main():
                         help='overwrites the bag time with the header time stamp', default=False)
     parser.add_argument('--replace_with_new_topic', action='store_true',
                         help='removes relpose_topics if a new_relpose_topics was specified', default=False)
+    parser.add_argument('--interpolation_type', help='Trajectory interolation time', choices=TrajectoryInterpolationType.list(),
+                        default=str(TrajectoryInterpolationType.linear))
     tp_start = time.time()
     args = parser.parse_args()
 
@@ -382,7 +391,8 @@ def main():
                                  verbose=args.verbose,
                                  stddev_pos=float(args.std_pos),
                                  stddev_or=float(args.std_or),
-                                 use_header_timestamp=args.use_header_timestamp ):
+                                 use_header_timestamp=args.use_header_timestamp,
+                                 interp_type=TrajectoryInterpolationType(args.interpolation_type)):
         print(" ")
         print("finished after [%s sec]\n" % str(time.time() - tp_start))
     else:

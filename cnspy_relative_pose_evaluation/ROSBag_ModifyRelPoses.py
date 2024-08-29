@@ -19,21 +19,13 @@
 # just install "pip install cnspy-rosbag2csv"
 ########################################################################################################################
 import sys
-import traceback
 import rosbag
 import time
 import os
 import argparse
 import yaml
-import csv
 from tqdm import tqdm
-import numpy as np
-from numpy import linalg as LA
-from spatialmath import UnitQuaternion, SO3, SE3, Quaternion, base, quaternion
-from spatialmath.base.quaternions import qslerp
-from cnspy_ranging_evaluation.HistoryBuffer import HistoryBuffer, get_key_from_value
-from std_msgs.msg import Header, Time
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformStamped
+from cnspy_trajectory.HistoryBuffer import get_key_from_value
 
 from mrs_msgs.msg import PoseWithCovarianceArrayStamped, PoseWithCovarianceIdentified
 
@@ -110,12 +102,6 @@ class ROSBag_ModifyRelPoses:
             bag.close()
             return False
 
-        ## create csv file according to the topic names:
-        dict_file_writers = dict()
-        dict_header_written = dict()
-        dict_csvfile_hdls = dict()
-        idx = 0
-
         ## check if desired topics are in the bag file:
         num_messages = info_dict['messages']
         bag_topics = info_dict['topics']
@@ -128,7 +114,6 @@ class ROSBag_ModifyRelPoses:
                     found_ = True
             if not found_:
                 print("# WARNING: desired topic [" + str(topicName) + "] is not in bag file!")
-
 
         ## TODO:
         cnt = 0
@@ -216,7 +201,7 @@ class ROSBag_ModifyRelPoses:
 def main():
     # example: ROSBag_Pose2Ranges.py --bagfile ../test/sample_data//uwb_calib_a01_2023-08-31-21-05-46.bag --topic /d01/mavros/vision_pose/pose --cfg ../test/sample_data/config.yaml --verbose
     parser = argparse.ArgumentParser(
-        description='ROSBag_ModifyRelPoses: extract given pose topics and modify them')
+        description='ROSBag_ModifyRelPoses: extract given relative pose topics and modifies them (removing position or orientation')
     parser.add_argument('--bagfile_in', help='input bag file', required=True)
     parser.add_argument('--bagfile_out', help='output bag file', required=True)
     parser.add_argument('--cfg',

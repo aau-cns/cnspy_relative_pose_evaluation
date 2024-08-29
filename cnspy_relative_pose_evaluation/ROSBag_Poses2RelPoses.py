@@ -19,7 +19,6 @@
 # just install "pip install cnspy-rosbag2csv"
 ########################################################################################################################
 import sys
-import traceback
 import rosbag
 import time
 import os
@@ -29,12 +28,10 @@ import csv
 from tqdm import tqdm
 import numpy as np
 from numpy import linalg as LA
-from spatialmath import UnitQuaternion, SO3, SE3, Quaternion, base, quaternion
+from spatialmath import UnitQuaternion, SO3, SE3
 from spatialmath.base.quaternions import qslerp
-from cnspy_ranging_evaluation.HistoryBuffer import get_key_from_value
+from cnspy_trajectory.HistoryBuffer import get_key_from_value
 from cnspy_ranging_evaluation.ROSBag_Pose import ROSBag_Pose
-from std_msgs.msg import Header, Time
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformStamped
 
 
 def relpose_to_csv_line(timestamp, ID1, ID2, Pose, round_decimals=4):
@@ -284,7 +281,7 @@ class ROSBag_Poses2RelPoses:
 def main():
     # example: ROSBag_Pose2Ranges.py --bagfile ../test/sample_data//uwb_calib_a01_2023-08-31-21-05-46.bag --topic /d01/mavros/vision_pose/pose --cfg ../test/sample_data/config.yaml --verbose
     parser = argparse.ArgumentParser(
-        description='ROSBag_Poses2RelPoses: extract given pose topics and compute for each pose a relative poses, which is stored into a CSV file')
+        description='ROSBag_Poses2RelPoses: extract given pose topics and computes for each pose a relative poses, which is stored into a CSV file')
     parser.add_argument('--bagfile', help='input bag file', required=True)
     parser.add_argument('--cfg', help='YAML configuration file describing the setup: {sensor_positions, sensor_topics}', default="config.yaml", required=True)
     parser.add_argument('--filename', help='csv filename of corresponding topic', default="")
