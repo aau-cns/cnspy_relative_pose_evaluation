@@ -24,25 +24,26 @@ from cnspy_relative_pose_evaluation.RelPoseMeasEvaluation import *
 SAMPLE_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sample_data')
 RES_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_results')
 
+
 class RelPoseMeasEvaluation_Test(unittest.TestCase):
     def test_with_noise(self):
         fn_gt = SAMPLE_DATA_DIR + '/synth/meas_B1B2_N1000_np-0_nR-0.csv'
         fn_est = SAMPLE_DATA_DIR + '/synth/meas_B1B2_N1000_np-0.1_nR-0.1.csv'
 
-        RelPoseMeasEvaluation(fn_gt,fn_est,
+        RelPoseMeasEvaluation(fn_gt, fn_est,
                               result_dir=RES_DATA_DIR + '/RPME/',
                               filter_histogram=False,
                               plot_timestamps=False,
-                             plot_ranges=True,
-                             plot_angles=False,
-                             plot_ranges_sorted=False,
-                             plot_range_error =True,
-                             plot_angle_error=True,
-                             plot_range_histogram=True,
-                             plot_angle_histogram=True,
-                             plot_pose_err=True,
-                             plot_pose=True,
-                             verbose=False)
+                              plot_ranges=True,
+                              plot_angles=False,
+                              plot_ranges_sorted=False,
+                              plot_range_error=True,
+                              plot_angle_error=True,
+                              plot_range_histogram=True,
+                              plot_angle_histogram=True,
+                              plot_pose_err=True,
+                              plot_pose=True,
+                              verbose=False)
 
         self.assertEqual(True, False)  # add assertion here
 

@@ -33,6 +33,7 @@ from spatialmath import UnitQuaternion, SO3, SE3, Quaternion, base
 from std_msgs.msg import Header, Time
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformStamped
 
+from cnspy_trajectory.BsplineSE3 import TrajectoryInterpolationType
 from cnspy_relative_pose_evaluation.ROSBag_Poses2RelPoses import *
 from cnspy_relative_pose_evaluation.ROSBag_TrueRelPoses import *
 from cnspy_relative_pose_evaluation.RelPose_ROSBag2CSV import *
@@ -43,7 +44,7 @@ class RelPoseMeasEvaluationTool:
     @staticmethod
     def evaluate(bagfile_in, cfg_fn, result_dir=None, verbose=True, show_plot=True, save_plot=True,
                  ID_arr=None, filter_histogram=True, extra_plots = True, max_range=None, max_angle=None,
-                 remove_outliers=True):
+                 remove_outliers=True, interp_type=TrajectoryInterpolationType.linear):
         if not os.path.isfile(bagfile_in):
             print("RangeEvaluationTool: could not find file: %s" % bagfile_in)
             return False
@@ -119,7 +120,8 @@ class RelPoseMeasEvaluationTool:
                                               verbose=verbose,
                                               use_header_timestamp=False,
                                               ignore_new_topic_name=True,
-                                              stddev_pos=0.0)
+                                              stddev_pos=0.0,
+                                              interp_type=interp_type)
 
         if not os.path.isfile(fn_gt_ranges):
             # 3) extract all measurements from the clean bagfile
@@ -196,7 +198,8 @@ def main():
     parser.add_argument('--filter_histogram', help='filters the error histogram, such that the fitted normal distribution is computed on the best bins only', action='store_true', default=False)
     parser.add_argument('--max_range', help='max. range that classifies them as outlier (0 disables feature). ', default='0')
     parser.add_argument('--max_angle', help='max. range that classifies them as outlier (0 disables feature)', default='0')
-
+    parser.add_argument('--interpolation_type', help='Trajectory interpolation type', choices=TrajectoryInterpolationType.list(),
+                        default=str(TrajectoryInterpolationType.linear))
     tp_start = time.time()
     args = parser.parse_args()
 
@@ -210,7 +213,8 @@ def main():
                                        max_angle=float(args.max_angle),
                                        extra_plots=args.extra_plots,
                                        filter_histogram=args.filter_histogram,
-                                       remove_outliers=not args.keep_outliers)
+                                       remove_outliers=not args.keep_outliers,
+                                       interp_type=TrajectoryInterpolationType(args.interpolation_type))
     pass
     print(" ")
     print("finished after [%s sec]\n" % str(time.time() - tp_start))

@@ -147,7 +147,7 @@ class EvaluationTrail:
     @staticmethod
     def test_RelPoseEval():
         sequence = 'two_spiral_2to3m'
-        sequence = 'static_test'
+        #sequence = 'static_test'
         bagfile_in = str(SAMPLE_DATA_DIR + '/' + sequence + '.bag')
 
         cfg_file = str(SAMPLE_DATA_DIR + '/config.yaml')
@@ -157,9 +157,10 @@ class EvaluationTrail:
                                            save_plot=True,
                                            show_plot=False,
                                            verbose=True,
-                                           ID_arr=[0,1,2],
+                                           ID_arr=[0,1],
                                            max_range=0,
-                                           max_angle=0)
+                                           max_angle=0,
+                                           interp_type=TrajectoryInterpolationType.cubic)
 
     @staticmethod
     def test_RelPoseEval_gazebo():

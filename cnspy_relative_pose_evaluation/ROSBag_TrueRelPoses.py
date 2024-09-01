@@ -235,12 +235,13 @@ class ROSBag_TrueRelPoses:
                                                  dict_T_BODY_SENSOR)
 
         dict_bsplines = dict()
-        for true_pose_topic, hist in dict_history:
+        for true_pose_topic, hist in dict_history.items():
             bspline = BsplineSE3()
-            if interp_type == TrajectoryInterpolationType.cubic:
-                bspline.feed_pose_history(hist_pose=hist)
-            elif interp_type == TrajectoryInterpolationType.linear:
-                bspline.feed_pose_history(hist_pose=hist, uniform_timestamps=False)
+            if hist and len(hist.t_vec):
+                if interp_type == TrajectoryInterpolationType.cubic:
+                    bspline.feed_pose_history(hist_pose=hist, min_dt=0.05)
+                elif interp_type == TrajectoryInterpolationType.linear:
+                    bspline.feed_pose_history(hist_pose=hist, uniform_timestamps=False)
             dict_bsplines[true_pose_topic] = bspline
 
         cnt = 0
@@ -380,7 +381,7 @@ def main():
                         help='overwrites the bag time with the header time stamp', default=False)
     parser.add_argument('--replace_with_new_topic', action='store_true',
                         help='removes relpose_topics if a new_relpose_topics was specified', default=False)
-    parser.add_argument('--interpolation_type', help='Trajectory interolation time', choices=TrajectoryInterpolationType.list(),
+    parser.add_argument('--interpolation_type', help='Trajectory interpolation type', choices=TrajectoryInterpolationType.list(),
                         default=str(TrajectoryInterpolationType.linear))
     tp_start = time.time()
     args = parser.parse_args()
