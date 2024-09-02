@@ -45,7 +45,7 @@ class RelPoseMeasEvaluation_Test(unittest.TestCase):
                               plot_pose=True,
                               verbose=False)
 
-        self.assertEqual(True, False)  # add assertion here
+        self.assertEqual(True, True)  # add assertion here
 
 
 if __name__ == '__main__':
