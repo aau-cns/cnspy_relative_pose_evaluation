@@ -40,15 +40,16 @@ from cnspy_relative_pose_evaluation.RelPose_ROSBag2CSV import *
 from cnspy_relative_pose_evaluation.AssociateRelPoses import AssociateRelPoses, AssociateRelPoseCfg
 from cnspy_relative_pose_evaluation.RelPoseMeasEvaluation import RelPoseMeasEvaluation
 
+
 class RelPoseMeasEvaluationTool:
     @staticmethod
     def evaluate(bagfile_in, cfg_fn, result_dir=None, verbose=True, show_plot=True, save_plot=True,
-                 ID_arr=None, filter_histogram=True, extra_plots = True, max_range=None, max_angle=None,
-                 remove_outliers=True, interp_type=TrajectoryInterpolationType.linear):
+                 ID_arr=None, filter_histogram=True, extra_plots=True, max_range=None, max_angle=None,
+                 remove_outliers=True, interp_type=TrajectoryInterpolationType.linear,
+                 min_dt=0.05):
         if not os.path.isfile(bagfile_in):
             print("RangeEvaluationTool: could not find file: %s" % bagfile_in)
             return False
-
 
         ## create result dir:
         if result_dir == "" or result_dir is None:
@@ -74,7 +75,7 @@ class RelPoseMeasEvaluationTool:
             if "relpose_topics" not in dict_cfg:
                 print("[relpose_topics] does not exist in fn=" + cfg_fn)
                 return False
-            #if "new_relpose_topics" not in dict_cfg:
+            # if "new_relpose_topics" not in dict_cfg:
             #    print("[new_relpose_topics] was specified and is currently NOT SUPPORTED (please remove or comment it out) in fn=" + cfg_fn)
             #    return False
             print("Successfully read YAML config file.")
@@ -94,10 +95,9 @@ class RelPoseMeasEvaluationTool:
         if ID_arr:
             Sensor_ID_arr = ID_arr
 
-        #topic_list=['/d01/ranging', '/a01/ranging', '/a02/ranging', '/a03/ranging']
+        # topic_list=['/d01/ranging', '/a01/ranging', '/a02/ranging', '/a03/ranging']
         fn_meas_ranges = str(result_dir + '/all-meas-ranges.csv')
         fn_gt_ranges = str(result_dir + '/all-true-ranges.csv')
-
 
         # 1) extract all measurements to CSV
         if not os.path.isfile(fn_meas_ranges):
@@ -107,8 +107,6 @@ class RelPoseMeasEvaluationTool:
                                                     result_dir=result_dir,
                                                     verbose=verbose,
                                                     with_cov=True)
-
-
 
         bagfile_out = str(result_dir + '/true-ranges.bag')
 
@@ -121,7 +119,8 @@ class RelPoseMeasEvaluationTool:
                                               use_header_timestamp=False,
                                               ignore_new_topic_name=True,
                                               stddev_pos=0.0,
-                                              interp_type=interp_type)
+                                              interp_type=interp_type,
+                                              min_dt=min_dt)
 
         if not os.path.isfile(fn_gt_ranges):
             # 3) extract all measurements from the clean bagfile
@@ -131,27 +130,25 @@ class RelPoseMeasEvaluationTool:
                                                     result_dir=result_dir,
                                                     verbose=verbose)
 
-
         # 4) evaluate the ranges
         cfg = AssociateRelPoseCfg(ID1=None,
-                                     ID2=None,
-                                     relative_timestamps=False,
-                                     max_difference=10**-4,
-                                     subsample=0,
-                                     verbose=verbose,
-                                     remove_outliers=remove_outliers,
-                                     range_error_val=0,
-                                     label_timestamp='t',
-                                     label_ID1='ID1',
-                                     label_ID2='ID2',
-                                     label_range='range')
+                                  ID2=None,
+                                  relative_timestamps=False,
+                                  max_difference=10 ** -4,
+                                  subsample=0,
+                                  verbose=verbose,
+                                  remove_outliers=remove_outliers,
+                                  range_error_val=0,
+                                  label_timestamp='t',
+                                  label_ID1='ID1',
+                                  label_ID2='ID2',
+                                  label_range='range')
 
         if max_range is not None:
             cfg.max_range_error = max_range
             cfg.max_range = max_range
         if max_angle is not None:
             cfg.max_angle = max_angle
-
 
         eval = RelPoseMeasEvaluation(fn_gt=fn_gt_ranges,
                                      fn_est=fn_meas_ranges,
@@ -178,6 +175,7 @@ class RelPoseMeasEvaluationTool:
                                      )
         pass  # DONE
 
+
 def main():
     # RelPoseMeasEvaluationTool.py --bagfile  ./test/sample_data/T1_A3_loiter_2m_2023-08-31-20-58-20.bag --cfg ./test/sample_data/config.yaml
     parser = argparse.ArgumentParser(
@@ -191,15 +189,27 @@ def main():
                              'relpose_topics:{<id>:<topic_name>, ...}, true_pose_topics:{<id>:<topic_name>, ...}',
                         default="config.yaml", required=True)
     parser.add_argument('--save_plot', help='saves all plots in the result_dir', action='store_true', default=False)
-    parser.add_argument('--show_plot', help='blocks the evaluation, for inspecting individual plots, continuous after closing', action='store_true', default=False)
+    parser.add_argument('--show_plot',
+                        help='blocks the evaluation, for inspecting individual plots, continuous after closing',
+                        action='store_true', default=False)
     parser.add_argument('--verbose', action='store_true', default=False)
-    parser.add_argument('--extra_plots', help='plots: timestamps, ranges + angles (sorted + unsorted + error),  ', action='store_true', default=False)
-    parser.add_argument('--keep_outliers', help='do not apply the max. thresholds on the error',  action='store_true', default=False)
-    parser.add_argument('--filter_histogram', help='filters the error histogram, such that the fitted normal distribution is computed on the best bins only', action='store_true', default=False)
-    parser.add_argument('--max_range', help='max. range that classifies them as outlier (0 disables feature). ', default='0')
-    parser.add_argument('--max_angle', help='max. range that classifies them as outlier (0 disables feature)', default='0')
-    parser.add_argument('--interpolation_type', help='Trajectory interpolation type', choices=TrajectoryInterpolationType.list(),
+    parser.add_argument('--extra_plots', help='plots: timestamps, ranges + angles (sorted + unsorted + error),  ',
+                        action='store_true', default=False)
+    parser.add_argument('--keep_outliers', help='do not apply the max. thresholds on the error', action='store_true',
+                        default=False)
+    parser.add_argument('--filter_histogram',
+                        help='filters the error histogram, such that the fitted normal distribution is computed on the best bins only',
+                        action='store_true', default=False)
+    parser.add_argument('--max_range', help='max. range that classifies them as outlier (0 disables feature). ',
+                        default='0')
+    parser.add_argument('--max_angle', help='max. range that classifies them as outlier (0 disables feature)',
+                        default='0')
+    parser.add_argument('--interpolation_type', help='Trajectory interpolation type',
+                        choices=TrajectoryInterpolationType.list(),
                         default=str(TrajectoryInterpolationType.linear))
+    parser.add_argument('--min_dt',
+                        help='temporal displacement of cubic spline control points',
+                        default=0.05)
     tp_start = time.time()
     args = parser.parse_args()
 

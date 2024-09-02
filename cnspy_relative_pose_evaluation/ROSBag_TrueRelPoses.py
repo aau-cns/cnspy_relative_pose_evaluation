@@ -103,6 +103,37 @@ class ROSBag_TrueRelPoses:
         pass
 
     @staticmethod
+    def load_dict_cfg(cfg_fn, ignore_new_topic_name, verbose) ->  dict:
+        with open(cfg_fn, "r") as yamlfile:
+            dict_cfg = yaml.load(yamlfile, Loader=yaml.FullLoader)
+            if "sensor_positions" not in dict_cfg:
+                print("[sensor_positions] does not exist in fn=" + cfg_fn)
+                return False
+            if "sensor_orientations" not in dict_cfg:
+                print("[sensor_orientations] does not exist in fn=" + cfg_fn)
+            if "true_pose_topics" not in dict_cfg:
+                print("[true_pose_topics] does not exist in fn=" + cfg_fn)
+                return False
+            if "relpose_topics" not in dict_cfg:
+                print("[relpose_topics] does not exist in fn=" + cfg_fn)
+                return False
+            if "new_relpose_topics" not in dict_cfg:
+                print("[new_relpose_topics] does not exist in fn=" + cfg_fn)
+            elif ignore_new_topic_name:
+                print("[new_relpose_topics] WILL BE IGNORED, but was specified in fn=" + cfg_fn)
+            print("Configuration read successfully")
+        if verbose:
+            print("configuration contains:")
+            print("sensor_positions:" + str(dict_cfg["sensor_positions"]))
+            print("sensor_orientations:" + str(dict_cfg["sensor_orientations"]))
+            print("true_pose_topics:" + str(dict_cfg["true_pose_topics"]))
+            print("relpose_topics:" + str(dict_cfg["relpose_topics"]))
+            if "new_relpose_topics" in dict_cfg and not ignore_new_topic_name:
+                print("new_relpose_topics:" + str(dict_cfg["new_relpose_topics"]))
+
+        return dict_cfg
+
+    @staticmethod
     def extract(bagfile_in_name,
                 bagfile_out_name,
                 cfg,
@@ -112,7 +143,8 @@ class ROSBag_TrueRelPoses:
                 verbose=False,
                 replace_with_new_topic=False,
                 ignore_new_topic_name=False,
-                interp_type = TrajectoryInterpolationType.cubic
+                interp_type = TrajectoryInterpolationType.cubic,
+                min_dt = 0.05
                 ):
 
         if not os.path.isfile(bagfile_in_name):
@@ -153,33 +185,9 @@ class ROSBag_TrueRelPoses:
         if verbose:
             print("* result_dir: \t " + str(head))
 
-        dict_cfg = None
-        with open(cfg, "r") as yamlfile:
-            dict_cfg = yaml.load(yamlfile, Loader=yaml.FullLoader)
-            if "sensor_positions" not in dict_cfg:
-                print("[sensor_positions] does not exist in fn=" + cfg)
-                return False
-            if "sensor_orientations" not in dict_cfg:
-                print("[sensor_orientations] does not exist in fn=" + cfg)
-            if "true_pose_topics" not in dict_cfg:
-                print("[true_pose_topics] does not exist in fn=" + cfg)
-                return False
-            if "relpose_topics" not in dict_cfg:
-                print("[relpose_topics] does not exist in fn=" + cfg)
-                return False
-            if "new_relpose_topics" not in dict_cfg:
-                print("[new_relpose_topics] does not exist in fn=" + cfg)
-            elif ignore_new_topic_name:
-                print("[new_relpose_topics] WILL BE IGNORED, but was specified in fn=" + cfg)
-            print("Configuration read successfully")
-        if verbose:
-            print("configuration contains:")
-            print("sensor_positions:" + str(dict_cfg["sensor_positions"]))
-            print("sensor_orientations:" + str(dict_cfg["sensor_orientations"]))
-            print("true_pose_topics:" + str(dict_cfg["true_pose_topics"]))
-            print("relpose_topics:" + str(dict_cfg["relpose_topics"]))
-            if "new_relpose_topics" in dict_cfg and not ignore_new_topic_name:
-                print("new_relpose_topics:" + str(dict_cfg["new_relpose_topics"]))
+        dict_cfg = ROSBag_TrueRelPoses.load_dict_cfg(cfg_fn=cfg,
+                                                     ignore_new_topic_name=ignore_new_topic_name,
+                                                     verbose=verbose)
 
         info_dict = yaml.load(bag._get_yaml_info(), Loader=yaml.FullLoader)
 
@@ -193,56 +201,11 @@ class ROSBag_TrueRelPoses:
         num_messages = info_dict['messages']
         bag_topics = info_dict['topics']
 
-        # check if desired topics are in
-        for id, topicName in dict_cfg["true_pose_topics"].items():
-            found_ = False
-            for topic_info in bag_topics:
-                if topic_info['topic'] == topicName:
-                    found_ = True
-            if not found_:
-                print("# WARNING: desired topic [" + str(topicName) + "] is not in bag file!")
-        for id, topicName in dict_cfg["relpose_topics"].items():
-            found_ = False
-            for topic_info in bag_topics:
-                if topic_info['topic'] == topicName:
-                    found_ = True
-            if not found_:
-                print("# WARNING: desired topic [" + str(topicName) + "] is not in bag file!")
+        ROSBag_TrueRelPoses.check_topics(bag_topics, dict_cfg, num_messages, verbose)
 
-        if verbose:
-            print("\nROSBag_TrueRelPoses: num messages " + str(num_messages))
-
-        ## store the BODY SENSOR pose in a dictionary
-        dict_T_BODY_SENSOR = dict() # map<topic, SE3>
-        for ID, sensor_pos in dict_cfg["sensor_positions"].items():
-            t_BT = np.array(sensor_pos)
-            q_BT = UnitQuaternion()
-            if ID in dict_cfg["sensor_orientations"].keys():
-                # expecting: w,x,y,z
-                q_vec = np.array(dict_cfg["sensor_orientations"][ID])
-                q_BT = UnitQuaternion(q_vec).unit()
-                pass
-            dict_T_BODY_SENSOR[dict_cfg["true_pose_topics"][ID]] = SE3.Rt(q_BT.R, t_BT, check=True)
-
-        ## extract the poses of the desired topics from the BAG file
-        round_decimals = 6
-        # map<true_pose_topic,History<timestamp, SE3>>
-        dict_history = ROSBag_Pose.extract_poses(bag,
-                                                 num_messages,
-                                                 dict_cfg["true_pose_topics"],
-                                                 dict_cfg["true_pose_topics"],
-                                                 round_decimals,
-                                                 dict_T_BODY_SENSOR)
-
-        dict_bsplines = dict()
-        for true_pose_topic, hist in dict_history.items():
-            bspline = BsplineSE3()
-            if hist and len(hist.t_vec):
-                if interp_type == TrajectoryInterpolationType.cubic:
-                    bspline.feed_pose_history(hist_pose=hist, min_dt=0.05)
-                elif interp_type == TrajectoryInterpolationType.linear:
-                    bspline.feed_pose_history(hist_pose=hist, uniform_timestamps=False)
-            dict_bsplines[true_pose_topic] = bspline
+        round_decimals = 4
+        dict_bsplines, dict_history = ROSBag_TrueRelPoses.load_dict_splines(bag, dict_cfg, interp_type, min_dt,
+                                                                              num_messages, round_decimals)
 
         cnt = 0
         try:  # else already exists
@@ -354,6 +317,58 @@ class ROSBag_TrueRelPoses:
         bag.close()
         return True
 
+    @staticmethod
+    def check_topics(bag_topics, dict_cfg, num_messages, verbose):
+        # check if desired topics are in
+        for id, topicName in dict_cfg["true_pose_topics"].items():
+            found_ = False
+            for topic_info in bag_topics:
+                if topic_info['topic'] == topicName:
+                    found_ = True
+            if not found_:
+                print("# WARNING: desired topic [" + str(topicName) + "] is not in bag file!")
+        for id, topicName in dict_cfg["relpose_topics"].items():
+            found_ = False
+            for topic_info in bag_topics:
+                if topic_info['topic'] == topicName:
+                    found_ = True
+            if not found_:
+                print("# WARNING: desired topic [" + str(topicName) + "] is not in bag file!")
+        if verbose:
+            print("\nROSBag_TrueRelPoses: num messages " + str(num_messages))
+
+    @staticmethod
+    def load_dict_splines(bag, dict_cfg, interp_type, min_dt, num_messages, round_decimals = 4):
+        ## store the BODY SENSOR pose in a dictionary
+        dict_T_BODY_SENSOR = dict()  # map<topic, SE3>
+        for ID, sensor_pos in dict_cfg["sensor_positions"].items():
+            t_BT = np.array(sensor_pos)
+            q_BT = UnitQuaternion()
+            if ID in dict_cfg["sensor_orientations"].keys():
+                # expecting: w,x,y,z
+                q_vec = np.array(dict_cfg["sensor_orientations"][ID])
+                q_BT = UnitQuaternion(q_vec).unit()
+                pass
+            dict_T_BODY_SENSOR[dict_cfg["true_pose_topics"][ID]] = SE3.Rt(q_BT.R, t_BT, check=True)
+        ## extract the poses of the desired topics from the BAG file
+
+        # map<true_pose_topic,History<timestamp, SE3>>
+        dict_history = ROSBag_Pose.extract_poses(bag,
+                                                 num_messages,
+                                                 dict_cfg["true_pose_topics"],
+                                                 dict_cfg["true_pose_topics"],
+                                                 round_decimals,
+                                                 dict_T_BODY_SENSOR)
+        dict_bsplines = dict()
+        for true_pose_topic, hist in dict_history.items():
+            bspline = BsplineSE3()
+            if hist and len(hist.t_vec):
+                if interp_type == TrajectoryInterpolationType.cubic:
+                    bspline.feed_pose_history(hist_pose=hist, min_dt=min_dt, round_decimals=round_decimals)
+                elif interp_type == TrajectoryInterpolationType.linear:
+                    bspline.feed_pose_history(hist_pose=hist, uniform_timestamps=False)
+            dict_bsplines[true_pose_topic] = bspline
+        return dict_bsplines, dict_history
 
 
 def main():
@@ -383,6 +398,9 @@ def main():
                         help='removes relpose_topics if a new_relpose_topics was specified', default=False)
     parser.add_argument('--interpolation_type', help='Trajectory interpolation type', choices=TrajectoryInterpolationType.list(),
                         default=str(TrajectoryInterpolationType.linear))
+    parser.add_argument('--min_dt',
+                        help='temporal displacement of cubic spline control points',
+                        default=0.05)
     tp_start = time.time()
     args = parser.parse_args()
 
@@ -393,7 +411,8 @@ def main():
                                  stddev_pos=float(args.std_pos),
                                  stddev_or=float(args.std_or),
                                  use_header_timestamp=args.use_header_timestamp,
-                                 interp_type=TrajectoryInterpolationType(args.interpolation_type)):
+                                 interp_type=TrajectoryInterpolationType(args.interpolation_type),
+                                 min_dt=float(args.min_dt)):
         print(" ")
         print("finished after [%s sec]\n" % str(time.time() - tp_start))
     else:
