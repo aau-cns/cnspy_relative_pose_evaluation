@@ -39,6 +39,9 @@ from mrs_msgs.msg import PoseWithCovarianceArrayStamped, PoseWithCovarianceIdent
 
 
 def interpolate_pose(pose_hist, timestamp, round_decimals=4) -> SE3:
+    if pose_hist is None:
+        return None
+
     timestamp = round(timestamp, round_decimals)
     [ti, T_GLOBAL_BODY_Ti] = pose_hist.get_at_t(timestamp)
     if T_GLOBAL_BODY_Ti is None:
@@ -361,13 +364,13 @@ class ROSBag_TrueRelPoses:
                                                  dict_T_BODY_SENSOR)
         dict_bsplines = dict()
         for true_pose_topic, hist in dict_history.items():
-            bspline = BsplineSE3()
-            if hist and len(hist.t_vec):
+            if hist:
+                bspline = BsplineSE3()
                 if interp_type == TrajectoryInterpolationType.cubic:
                     bspline.feed_pose_history(hist_pose=hist, min_dt=min_dt, round_decimals=round_decimals)
                 elif interp_type == TrajectoryInterpolationType.linear:
                     bspline.feed_pose_history(hist_pose=hist, uniform_timestamps=False)
-            dict_bsplines[true_pose_topic] = bspline
+                dict_bsplines[true_pose_topic] = bspline
         return dict_bsplines, dict_history
 
 
