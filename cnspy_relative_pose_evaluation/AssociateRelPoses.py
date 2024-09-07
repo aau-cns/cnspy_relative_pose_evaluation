@@ -49,12 +49,14 @@ from cnspy_spatial_csv_formats.ErrorRepresentationType import ErrorRepresentatio
 from cnspy_spatial_csv_formats.CSVSpatialFormatType import CSVSpatialFormatType
 from cnspy_spatial_csv_formats.CSVSpatialFormat import  CSVSpatialFormat
 from cnspy_trajectory_evaluation.TrajectoryPosOrientNEES import TrajectoryPosOrientNEES
+from cnspy_trajectory_evaluation.TrajectoryPoseNEES import TrajectoryPoseNEES
 
 
 class AssociateRelPoseCfg(AssociateRangesCfg):
     label_angle = 'angle'
     max_angle = np.pi*2
     angle_error_val = 0
+    pose_error_type = EstimationErrorType.type5
 
     def __init__(self, ID1=None, ID2=None, relative_timestamps=False,
                  max_difference=0.02, subsample=0, verbose=False, remove_outliers=False,
@@ -62,7 +64,8 @@ class AssociateRelPoseCfg(AssociateRangesCfg):
                  label_ID1='ID1',
                  label_ID2='ID2',
                  label_range = 'range',
-                 label_angle = 'angle'):
+                 label_angle = 'angle',
+                 pose_error_type = EstimationErrorType.type5):
         self.label_timestame = label_timestamp
         self.label_ID1 = label_ID1
         self.label_ID2 = label_ID2
@@ -77,7 +80,7 @@ class AssociateRelPoseCfg(AssociateRangesCfg):
         self.remove_outliers = remove_outliers
         self.max_range = max_range
         self.range_error_val = range_error_val
-
+        self.pose_error_type = pose_error_type
 
 class AssociateRelPoses(AssociateRanges):
     csv_df_gt = None
@@ -232,21 +235,33 @@ class AssociateRelPoses(AssociateRanges):
                                        p_vec=self.data_frame_est_matched[['tx', 'ty', 'tz']].to_numpy(),
                                        q_vec=self.data_frame_est_matched[[ 'qx', 'qy', 'qz', 'qw']].to_numpy(),
                                             Sigma_p_vec=Sigma_p_vec, Sigma_R_vec=Sigma_R_vec)
+
+        if self.cfg.pose_error_type == EstimationErrorType.type5 or self.cfg.pose_error_type == EstimationErrorType.type6:
+            err_rep_type = ErrorRepresentationType.theta_so3
+        elif self.cfg.pose_error_type == EstimationErrorType.type1 or self.cfg.pose_error_type == EstimationErrorType.type2:
+            err_rep_type = ErrorRepresentationType.tau_se3
+        else:
+            assert False, "unsupported estimation error type: either 1,2,5,6! Got" + str(self.cfg.pose_error_type)
+
         est_fmt = CSVSpatialFormat(fmt_type=CSVSpatialFormatType.PosOrientWithCov,
-                                   est_err_type=EstimationErrorType.type5,
-                                   err_rep_type=ErrorRepresentationType.rpy_rad)
+                                   est_err_type=self.cfg.pose_error_type,
+                                   err_rep_type=err_rep_type)
         self.traj_est.set_format(est_fmt)
         self.traj_gt = Trajectory(t_vec = self.data_frame_gt_matched['t'].to_numpy(),
                                        p_vec=self.data_frame_gt_matched[['tx', 'ty', 'tz']].to_numpy(),
                                        q_vec=self.data_frame_gt_matched[['qx', 'qy', 'qz', 'qw']].to_numpy())
 
-
         self.traj_err = AbsoluteTrajectoryError.compute_trajectory_error(traj_est=self.traj_est,traj_gt=self.traj_gt, traj_err_type=TrajectoryErrorType(est_fmt.estimation_error_type))
-        # convert the traj_err into the error representation used
-        theta_vec = SpatialConverter.convert_q_vec_to_theta_vec(self.traj_err.q_vec, rot_err_rep=est_fmt.rotation_error_representation)
-        traj_est_err = TrajectoryEstimationError(t_vec=self.traj_err.t_vec, nu_vec=self.traj_err.p_vec, theta_vec=theta_vec,
+
+        # 1) traj_err is converted to error definition, e.g. on the se(3) or on so(3)x R3
+        traj_est_err = TrajectoryEstimationError(t_vec=self.traj_err.t_vec, p_vec=self.traj_err.p_vec, q_vec=self.traj_err.q_vec,
                                                  est_err_type=est_fmt.estimation_error_type, err_rep_type=est_fmt.rotation_error_representation)
-        self.traj_nees = TrajectoryPosOrientNEES(traj_est=self.traj_est, traj_err=traj_est_err)
+        # 2) the NEES should be computed for R(3)xso(3) or  se(3):
+        if self.cfg.pose_error_type == EstimationErrorType.type5 or self.cfg.pose_error_type == EstimationErrorType.type6:
+            self.traj_nees = TrajectoryPosOrientNEES(traj_est=self.traj_est, traj_err=traj_est_err)
+        else:
+            self.traj_nees = TrajectoryPoseNEES(traj_est=self.traj_est, traj_err=traj_est_err)
+        pass
 
     def plot_traj_err(self, cfg=TrajectoryPlotConfig(), fig=None, plot_NEES=True):
         if not self.data_loaded:
@@ -276,15 +291,23 @@ class AssociateRelPoses(AssociateRanges):
                                             ls=PlotLineStyle(linewidth=0.5, linestyle='-.'))
 
         if plot_NEES:
-            self.traj_nees.plot_NEES_p(ax1=ax5, relative_time=cfg.relative_time)
-            ax5.set_yscale('log')
-            ax5.grid()
-            self.traj_nees.plot_NEES_R(ax2=ax6, relative_time=cfg.relative_time)
-            ax6.set_yscale('log')
-            ax6.grid()
-            return fig, ax1, ax2, ax3, ax4, ax5, ax6
+            if isinstance(self.traj_nees, TrajectoryPosOrientNEES):
+                self.traj_nees.plot_NEES_p(ax1=ax5, relative_time=cfg.relative_time)
+                ax5.set_yscale('log')
+                ax5.grid()
+                self.traj_nees.plot_NEES_R(ax2=ax6, relative_time=cfg.relative_time)
+                ax6.set_yscale('log')
+                ax6.grid()
+                return fig, ax1, ax2, ax3, ax4, ax5, ax6
+            else:
+                self.traj_nees.plot_NEES(ax1=ax5, relative_time=cfg.relative_time)
+                ax5.set_yscale('log')
+                ax5.grid()
+                return fig, ax1, ax2, ax3, ax4, ax5, ax6
+
         else:
             return fig, ax1, ax2, ax3, ax4
+
 
     def plot_traj(self, cfg=TrajectoryPlotConfig(), fig=None):
         if not self.data_loaded:
@@ -533,3 +556,38 @@ class AssociateRelPoses(AssociateRanges):
             return fig, ax, stat, r_filtered_err
         pass
 
+    def plot_NEES(self, cfg_dpi=200, cfg_title="NEES", fig=None, ax=None,
+                 label='',
+                 ls_vec=[PlotLineStyle(linestyle='-', linecolor='r'), PlotLineStyle(linestyle='-', linecolor='g')],
+                 save_fn="", result_dir=".", relative_time=True):
+        if not self.data_loaded:
+            return
+        if fig is None:
+            fig = plt.figure(figsize=(20, 15), dpi=int(cfg_dpi))
+        if ax is None:
+            ax = fig.add_subplot(111)
+        if cfg_title:
+            ax.set_title(cfg_title)
+
+        if isinstance(self.traj_nees, TrajectoryPosOrientNEES):
+            self.traj_nees.plot_NEES_p(ax1=ax, relative_time=relative_time, ls=ls_vec[0], plot_intervals=False)
+            self.traj_nees.plot_NEES_R(ax2=ax, relative_time=relative_time, ls=ls_vec[1])
+            if label:
+                ax.set_ylable(label)
+            else:
+                ax.set_ylabel('NEES rot+pos')
+            ax.set_yscale('log')
+            ax.grid()
+        else:
+            self.traj_nees.plot_NEES(ax1=ax, relative_time=relative_time, ls=ls_vec[0])
+            if label:
+                ax.set_ylable(label)
+            else:
+                ax.set_ylabel('NEES SE(3)')
+
+            ax.set_yscale('log')
+            ax.grid()
+
+        ax.legend()
+        #AssociateRanges.show_save_figure(fig=fig, result_dir=result_dir, save_fn=save_fn, show=False)
+        return fig, ax
