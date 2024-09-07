@@ -30,6 +30,7 @@ import pandas as pandas
 import numpy as np
 
 import cnspy_numpy_utils.numpy_statistics
+from cnspy_spatial_csv_formats.EstimationErrorType import EstimationErrorType
 from cnspy_timestamp_association.TimestampAssociation import TimestampAssociation
 from cnspy_relative_pose_evaluation.AssociateRelPoses import AssociateRelPoses, AssociateRelPoseCfg
 from matplotlib import pyplot as plt
@@ -38,8 +39,8 @@ from cnspy_trajectory.TrajectoryPlotConfig import TrajectoryPlotConfig
 
 
 class RelPoseMeasEvaluation:
-
     report = None
+
     def __init__(self,
                  fn_gt,
                  fn_est,
@@ -49,19 +50,20 @@ class RelPoseMeasEvaluation:
                  save_plot=True,
                  save_statistics=True,
                  show_plot=True,
-                 cfg = AssociateRelPoseCfg(),
+                 cfg=AssociateRelPoseCfg(),
                  plot_timestamps=True,
                  plot_ranges=True,
                  plot_angles=True,
                  plot_ranges_sorted=True,
-                 plot_range_error =True,
+                 plot_range_error=True,
                  plot_angle_error=True,
                  plot_range_histogram=True,
                  plot_angle_histogram=True,
                  plot_pose_err=True,
                  plot_pose=True,
+                 plot_NEES=True,
                  verbose=False,
-                 filter_histogram=True
+                 filter_histogram=True,
                  ):
         if not result_dir:
             result_dir = '.'
@@ -88,9 +90,11 @@ class RelPoseMeasEvaluation:
                        'outliers max range': cfg.max_range,
                        'outliers min range': 0,
                        'outliers max angle': cfg.max_angle,
-                       'result_dir': result_dir}, statistics_file, sort_keys=False, explicit_start=False, default_flow_style=False)
+                       'result_dir': result_dir}, statistics_file, sort_keys=False, explicit_start=False,
+                      default_flow_style=False)
             yaml.dump({'ID1s': ID1_arr,
-                       'ID2s': ID2_arr}, statistics_file, sort_keys=False, explicit_start=False, default_flow_style=True)
+                       'ID2s': ID2_arr}, statistics_file, sort_keys=False, explicit_start=False,
+                      default_flow_style=True)
         fn_gt = os.path.abspath(fn_gt)
         fn_est = os.path.abspath(fn_est)
 
@@ -133,7 +137,7 @@ class RelPoseMeasEvaluation:
                     if ID1 == ID2:
                         continue
                     fig_pe = plt.figure(figsize=(20, 15), dpi=int(200))
-                    fig_pe.suptitle('Pose Error of ID=' + str(ID1)  +" to " + str(ID2), fontsize=16)
+                    fig_pe.suptitle('Pose Error of ID=' + str(ID1) + " to " + str(ID2), fontsize=16)
                     fig_pe_dict[ID2] = fig_pe
             if plot_pose:
                 fig_p_dict = dict()
@@ -141,8 +145,11 @@ class RelPoseMeasEvaluation:
                     if ID1 == ID2:
                         continue
                     fig_p = plt.figure(figsize=(20, 15), dpi=int(200))
-                    fig_p.suptitle('Pose of ID=' + str(ID1)  +" to " + str(ID2), fontsize=16)
+                    fig_p.suptitle('Pose of ID=' + str(ID1) + " to " + str(ID2), fontsize=16)
                     fig_p_dict[ID2] = fig_p
+            if plot_NEES:
+                fig_n = plt.figure(figsize=(20, 15), dpi=int(200))
+                fig_n.suptitle('NEES of ID=' + str(ID1), fontsize=16)
             if plot_range_histogram:
                 fig_hr = plt.figure(figsize=(20, 15), dpi=int(200))
                 fig_hr.suptitle('Range Error Histograms of ID=' + str(ID1), fontsize=16)
@@ -150,14 +157,15 @@ class RelPoseMeasEvaluation:
                 fig_ha = plt.figure(figsize=(20, 15), dpi=int(200))
                 fig_ha.suptitle('Angle Error Histograms of ID=' + str(ID1), fontsize=16)
             if save_statistics:
-                dict_statistics_i = {'ID' : ID1, 'range_constant_bias_table' : dict(), 'range_noise_table' : dict(), 'angle_constant_bias_table' : dict(), 'angle_noise_table' : dict()}
+                dict_statistics_i = {'ID': ID1, 'range_constant_bias_table': dict(), 'range_noise_table': dict(),
+                                     'angle_constant_bias_table': dict(), 'angle_noise_table': dict()}
                 pass
 
-            n = len(ID2_arr)-1
-            sqrt_n = max(1,math.floor(math.sqrt(n)))
-            n_rows =  sqrt_n
-            if sqrt_n*sqrt_n < n:
-                n_cols = sqrt_n+1
+            n = len(ID2_arr) - 1
+            sqrt_n = max(1, math.floor(math.sqrt(n)))
+            n_rows = sqrt_n
+            if sqrt_n * sqrt_n < n:
+                n_cols = sqrt_n + 1
             else:
                 n_cols = sqrt_n
 
@@ -170,7 +178,7 @@ class RelPoseMeasEvaluation:
                 cfg.ID2 = int(ID2)
                 cfg_title = str("ID" + str(ID1) + " to ID" + str(ID2))
                 assoc = AssociateRelPoses(fn_gt=fn_gt, fn_est=fn_est, cfg=cfg)
-                assoc.save(result_dir=result_dir, prefix=prefix+cfg_title)
+                assoc.save(result_dir=result_dir, prefix=prefix + cfg_title)
 
                 if plot_timestamps:
                     ax_t = fig_t.add_subplot(n_rows, n_cols, idx)
@@ -209,13 +217,15 @@ class RelPoseMeasEvaluation:
                     cfg_plt.unwrap = True
                     assoc.plot_traj(fig=fig_pe, cfg=cfg_plt)
 
-
+                if plot_NEES:
+                    ax_n = fig_n.add_subplot(n_rows, n_cols, idx)
+                    assoc.plot_NEES(fig=fig_n, ax=ax_n, relative_time=True, cfg_title=cfg_title)
                 if plot_range_error:
                     ax_e = fig_re.add_subplot(n_rows, n_cols, idx)
                     [fig_, ax_, stat, r_vec_err_] = assoc.plot_range_error(fig=fig_re, ax=ax_e,
-                                                                        sorted=False,
-                                                                        remove_outlier=True,
-                                                                        cfg_title=cfg_title)
+                                                                           sorted=False,
+                                                                           remove_outlier=True,
+                                                                           cfg_title=cfg_title)
                     cnspy_numpy_utils.numpy_statistics.print_statistics(stat, desc=cfg_title + " error")
                 if plot_range_histogram:
                     ax_hr = fig_hr.add_subplot(n_rows, n_cols, idx)
@@ -225,8 +235,8 @@ class RelPoseMeasEvaluation:
                                                                                      filter_histogramm=filter_histogram,
                                                                                      ID1=ID1, ID2=ID2)
                     if stat is not None:
-                        dict_statistics_i['range_constant_bias_table'][ID2] = round(float(stat['mean']),2)
-                        dict_statistics_i['range_noise_table'][ID2] = round(float(stat['std']),2)
+                        dict_statistics_i['range_constant_bias_table'][ID2] = round(float(stat['mean']), 2)
+                        dict_statistics_i['range_noise_table'][ID2] = round(float(stat['std']), 2)
                 if plot_angle_histogram:
                     ax_ha = fig_ha.add_subplot(n_rows, n_cols, idx)
                     [fig_, ax_, stat, r_vec_err_] = assoc.plot_angle_error_histogram(fig=fig_ha,
@@ -235,8 +245,8 @@ class RelPoseMeasEvaluation:
                                                                                      filter_histogramm=filter_histogram,
                                                                                      ID1=ID1, ID2=ID2)
                     if stat is not None:
-                        dict_statistics_i['angle_constant_bias_table'][ID2] = round(float(stat['mean']),2)
-                        dict_statistics_i['angle_noise_table'][ID2] = round(float(stat['std']),2)
+                        dict_statistics_i['angle_constant_bias_table'][ID2] = round(float(stat['mean']), 2)
+                        dict_statistics_i['angle_noise_table'][ID2] = round(float(stat['std']), 2)
                 # the histogram of the date
                 idx += 1
 
@@ -249,34 +259,34 @@ class RelPoseMeasEvaluation:
                 fig_t.tight_layout()
                 if save_plot:
                     AssociateRelPoses.show_save_figure(fig=fig_t, result_dir=result_dir,
-                                                     save_fn=str("Timestamps" + str(ID1)),
-                                                     show=show_plot, close_figure=not show_plot)
+                                                       save_fn=str("Timestamps" + str(ID1)),
+                                                       show=show_plot, close_figure=not show_plot)
 
             if plot_ranges:
-               fig_r.tight_layout()
-               if save_plot:
-                   AssociateRelPoses.show_save_figure(fig=fig_r, result_dir=result_dir,
-                                                    save_fn=str("Ranges_ID" + str(ID1)),
-                                                    show=show_plot, close_figure=not show_plot)
+                fig_r.tight_layout()
+                if save_plot:
+                    AssociateRelPoses.show_save_figure(fig=fig_r, result_dir=result_dir,
+                                                       save_fn=str("Ranges_ID" + str(ID1)),
+                                                       show=show_plot, close_figure=not show_plot)
             if plot_angles:
-               fig_a.tight_layout()
-               if save_plot:
-                   AssociateRelPoses.show_save_figure(fig=fig_a, result_dir=result_dir,
-                                                    save_fn=str("Angle_ID" + str(ID1)),
-                                                    show=show_plot, close_figure=not show_plot)
+                fig_a.tight_layout()
+                if save_plot:
+                    AssociateRelPoses.show_save_figure(fig=fig_a, result_dir=result_dir,
+                                                       save_fn=str("Angle_ID" + str(ID1)),
+                                                       show=show_plot, close_figure=not show_plot)
             if plot_ranges_sorted:
                 fig_rs.tight_layout()
                 if save_plot:
                     AssociateRelPoses.show_save_figure(fig=fig_rs, result_dir=result_dir,
-                                                     save_fn=str("Range_Sorted_ID" + str(ID1)),
-                                                     show=show_plot, close_figure=not show_plot)
+                                                       save_fn=str("Range_Sorted_ID" + str(ID1)),
+                                                       show=show_plot, close_figure=not show_plot)
 
             if plot_range_error:
                 fig_re.tight_layout()
                 if save_plot:
                     AssociateRelPoses.show_save_figure(fig=fig_re, result_dir=result_dir,
-                                                     save_fn=str("Range_Errors_ID" + str(ID1)),
-                                                     show=show_plot, close_figure=not show_plot)
+                                                       save_fn=str("Range_Errors_ID" + str(ID1)),
+                                                       show=show_plot, close_figure=not show_plot)
 
             if plot_pose_err:
                 for ID2 in ID2_arr:
@@ -286,8 +296,8 @@ class RelPoseMeasEvaluation:
                     fig_pe.tight_layout()
                     if save_plot:
                         AssociateRelPoses.show_save_figure(fig=fig_pe, result_dir=result_dir,
-                                                         save_fn=str("Pose_Errors_ID" + str(ID1) + "_to_" +str(ID2)),
-                                                         show=show_plot, close_figure=not show_plot)
+                                                           save_fn=str("Pose_Errors_ID" + str(ID1) + "_to_" + str(ID2)),
+                                                           show=show_plot, close_figure=not show_plot)
                     pass
 
             if plot_pose:
@@ -298,39 +308,45 @@ class RelPoseMeasEvaluation:
                     fig_pe.tight_layout()
                     if save_plot:
                         AssociateRelPoses.show_save_figure(fig=fig_pe, result_dir=result_dir,
-                                                         save_fn=str("Pose_ID" + str(ID1) + "_to_" +str(ID2)),
-                                                         show=show_plot, close_figure=not show_plot)
+                                                           save_fn=str("Pose_ID" + str(ID1) + "_to_" + str(ID2)),
+                                                           show=show_plot, close_figure=not show_plot)
                     pass
             if plot_angle_error:
                 fig_ae.tight_layout()
                 if save_plot:
                     AssociateRelPoses.show_save_figure(fig=fig_ae, result_dir=result_dir,
-                                                     save_fn=str("Angle_Errors_ID" + str(ID1)),
-                                                     show=show_plot, close_figure=not show_plot)
+                                                       save_fn=str("Angle_Errors_ID" + str(ID1)),
+                                                       show=show_plot, close_figure=not show_plot)
             if plot_range_histogram:
                 fig_hr.tight_layout()
                 if save_plot:
                     AssociateRelPoses.show_save_figure(fig=fig_hr, result_dir=result_dir,
-                                                     save_fn=str("Range_Error_Histograms_ID" + str(ID1)),
-                                                     show=show_plot, close_figure=not show_plot)
+                                                       save_fn=str("Range_Error_Histograms_ID" + str(ID1)),
+                                                       show=show_plot, close_figure=not show_plot)
             if plot_angle_histogram:
                 fig_ha.tight_layout()
                 if save_plot:
                     AssociateRelPoses.show_save_figure(fig=fig_ha, result_dir=result_dir,
-                                                     save_fn=str("Angle_Error_Histograms_ID" + str(ID1)),
-                                                     show=show_plot, close_figure=not show_plot)
-
+                                                       save_fn=str("Angle_Error_Histograms_ID" + str(ID1)),
+                                                       show=show_plot, close_figure=not show_plot)
+            if plot_NEES:
+                fig_n.tight_layout()
+                if save_plot:
+                    AssociateRelPoses.show_save_figure(fig=fig_n, result_dir=result_dir,
+                                                       save_fn=str("NEES_ID" + str(ID1)),
+                                                       show=show_plot, close_figure=not show_plot)
             if save_statistics:
-                yaml.dump(dict_statistics_i, statistics_file,explicit_start=True, default_flow_style=True)
+                yaml.dump(dict_statistics_i, statistics_file, explicit_start=True, default_flow_style=True)
                 if verbose:
-                    print(yaml.dump(dict_statistics_i,explicit_start=True, default_flow_style=True))
-            pass # UWB_ID2
-        pass # UWB_ID1
+                    print(yaml.dump(dict_statistics_i, explicit_start=True, default_flow_style=True))
+            pass  # UWB_ID2
+        pass  # UWB_ID1
 
         if save_statistics:
             statistics_file.close()
 
-        pass # DONE
+        pass  # DONE
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -342,7 +358,8 @@ def main():
     parser.add_argument('--ID1s', help='ID of TX', nargs='+', default=[0])
     parser.add_argument('--ID2s', help='ID of RX', nargs='+', default=[1])
     parser.add_argument('--prefix', help='prefix in results', default='')
-    parser.add_argument('--max_timestamp_difference', help='Max difference between associated timestampes (t_gt - t_est)', default=0.03)
+    parser.add_argument('--max_timestamp_difference',
+                        help='Max difference between associated timestampes (t_gt - t_est)', default=0.03)
     parser.add_argument('--subsample', help='subsampling factor for input data (CSV)', default=0)
     parser.add_argument('--plot', action='store_true', default=True)
     parser.add_argument('--save_plot', action='store_true', default=True)
@@ -371,18 +388,18 @@ def main():
     tp_start = time.time()
     args = parser.parse_args()
     cfg = AssociateRelPoseCfg(ID1=None,
-                             ID2=None,
-                             relative_timestamps=args.relative_timestamps,
-                             max_difference=float(args.max_timestamp_difference),
-                             subsample=int(args.subsample),
-                             verbose=args.verbose,
-                             remove_outliers=args.remove_outliers,
-                             max_range=float(args.max_range),
-                             range_error_val=float(args.range_error_val),
-                             label_timestamp=args.label_timestamp,
-                             label_ID1=args.label_ID1,
-                             label_ID2=args.label_ID2,
-                             label_range = args.label_range)
+                              ID2=None,
+                              relative_timestamps=args.relative_timestamps,
+                              max_difference=float(args.max_timestamp_difference),
+                              subsample=int(args.subsample),
+                              verbose=args.verbose,
+                              remove_outliers=args.remove_outliers,
+                              max_range=float(args.max_range),
+                              range_error_val=float(args.range_error_val),
+                              label_timestamp=args.label_timestamp,
+                              label_ID1=args.label_ID1,
+                              label_ID2=args.label_ID2,
+                              label_range=args.label_range)
 
     eval = RelPoseMeasEvaluation(fn_gt=args.fn_gt,
                                  fn_est=args.fn_est,
@@ -409,6 +426,7 @@ def main():
     print(" ")
     print("finished after [%s sec]\n" % str(time.time() - tp_start))
     pass
+
 
 if __name__ == "__main__":
     main()

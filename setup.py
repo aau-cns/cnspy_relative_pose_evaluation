@@ -31,7 +31,18 @@ setup(
 
     packages=find_packages(exclude=["test_*", "TODO*"]),
     python_requires='>=3.6',
-    install_requires=['numpy', 'pandas', 'spatialmath-python', 'scipy', 'matplotlib', 'joblib', 'configparser', 'cnspy_numpy_utils', 'cnspy_timestamp_association>=0.2.1', 'cnspy_trajectory_evaluation>=0.2.5', 'cnspy_ranging_evaluation>=0.2.7', 'cnspy_csv2dataframe>=0.2.2' ],
+    install_requires=['numpy',
+                      'pandas',
+                      'spatialmath-python',
+                      'scipy',
+                      'matplotlib',
+                      'joblib',
+                      'configparser',
+                      'cnspy_numpy_utils',
+                      'cnspy_timestamp_association>=0.2.1',
+                      'cnspy_trajectory_evaluation>=0.2.5',
+                      'cnspy_ranging_evaluation>=0.2.7',
+                      'cnspy_csv2dataframe>=0.2.2' ],
     entry_points={
         'console_scripts': [
             'RelPoseMeasEvaluationTool = cnspy_relative_pose_evaluation.RelPoseMeasEvaluationTool:main',
