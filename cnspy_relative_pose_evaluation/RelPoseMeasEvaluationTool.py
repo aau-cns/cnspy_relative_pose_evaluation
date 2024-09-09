@@ -169,6 +169,7 @@ class RelPoseMeasEvaluationTool:
                                      plot_range_histogram=True,
                                      plot_angle_histogram=True,
                                      filter_histogram=filter_histogram,
+                                     plot_position_err=True,
                                      plot_pose_err=True,
                                      plot_pose=True,
                                      verbose=verbose

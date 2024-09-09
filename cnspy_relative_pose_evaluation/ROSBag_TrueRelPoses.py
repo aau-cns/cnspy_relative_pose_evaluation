@@ -341,7 +341,11 @@ class ROSBag_TrueRelPoses:
             print("\nROSBag_TrueRelPoses: num messages " + str(num_messages))
 
     @staticmethod
-    def load_dict_splines(bag, dict_cfg, interp_type, min_dt, num_messages, round_decimals = 4):
+    def load_dict_splines(bag, dict_cfg, interp_type, min_dt=0.05, num_messages=None, round_decimals = 4):
+        if num_messages is None:
+            info_dict = yaml.load(bag._get_yaml_info(), Loader=yaml.FullLoader)
+            num_messages = info_dict['messages']
+
         ## store the BODY SENSOR pose in a dictionary
         dict_T_BODY_SENSOR = dict()  # map<topic, SE3>
         for ID, sensor_pos in dict_cfg["sensor_positions"].items():
@@ -356,12 +360,12 @@ class ROSBag_TrueRelPoses:
         ## extract the poses of the desired topics from the BAG file
 
         # map<true_pose_topic,History<timestamp, SE3>>
-        dict_history = ROSBag_Pose.extract_poses(bag,
-                                                 num_messages,
-                                                 dict_cfg["true_pose_topics"],
-                                                 dict_cfg["true_pose_topics"],
-                                                 round_decimals,
-                                                 dict_T_BODY_SENSOR)
+        dict_history = ROSBag_Pose.extract_poses(bag=bag,
+                                                 dict_topic_pose_body=dict_cfg["true_pose_topics"],
+                                                 dict_senor_topic_pose=dict_cfg["true_pose_topics"],
+                                                 num_messages=num_messages,
+                                                 round_decimals=round_decimals,
+                                                 dict_T_BODY_SENSOR=dict_T_BODY_SENSOR)
         dict_bsplines = dict()
         for true_pose_topic, hist in dict_history.items():
             if hist:

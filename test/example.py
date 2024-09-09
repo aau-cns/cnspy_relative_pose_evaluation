@@ -16,7 +16,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 ########################################################################################################################
-
+import math
 import os
 
 from cnspy_relative_pose_evaluation.ROSBag_Pose2AbsPoses import ROSBag_Pose2AbsPoses
@@ -27,11 +27,14 @@ from cnspy_relative_pose_evaluation.RelPoseMeasEvaluationTool  import *
 from cnspy_spatial_csv_formats.CSVSpatialFormatType import CSVSpatialFormatType
 from cnspy_spatial_csv_formats.EstimationErrorType import EstimationErrorType
 from cnspy_trajectory_evaluation.TrajectoryAlignmentTypes import TrajectoryAlignmentTypes
+from cnspy_trajectory.Trajectory import Trajectory
+
 
 from cnspy_trajectory_evaluation.TrajectoryEvaluationTool import TrajectoryEvaluationTool
 
 SAMPLE_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sample_data')
 RES_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_results')
+
 
 
 class EvaluationTrail:
@@ -146,8 +149,8 @@ class EvaluationTrail:
 
     @staticmethod
     def test_RelPoseEval():
-        sequence = 'two_spiral_2to3m'
-        #sequence = 'static_test'
+        #sequence = 'two_spiral_2to3m'
+        sequence = 'static_test'
         bagfile_in = str(SAMPLE_DATA_DIR + '/' + sequence + '.bag')
 
         cfg_file = str(SAMPLE_DATA_DIR + '/config.yaml')
@@ -156,11 +159,41 @@ class EvaluationTrail:
                                            result_dir=RES_DATA_DIR + "/" + sequence,
                                            save_plot=True,
                                            show_plot=False,
+                                           remove_outliers=True,
+                                           filter_histogram=True,
                                            verbose=True,
-                                           ID_arr=[0,1],
-                                           max_range=0,
+                                           ID_arr=[0,1,2],
+                                           max_range=8,
                                            max_angle=0,
                                            interp_type=TrajectoryInterpolationType.cubic)
+
+    @staticmethod
+    def get_pos_rpy_stddev_static_test():
+        sequence = 'static_test'
+        bagfile_in = str(SAMPLE_DATA_DIR + '/' + sequence + '.bag')
+        cfg_fn = str(SAMPLE_DATA_DIR + '/config.yaml')
+        result_dir = RES_DATA_DIR + "/" + sequence,
+
+        dict_cfg = None
+        with open(cfg_fn, "r") as yamlfile:
+            dict_cfg = yaml.load(yamlfile, Loader=yaml.FullLoader)
+            if "true_pose_topics" not in dict_cfg:
+                print("[true_pose_topics] does not exist in fn=" + cfg_fn)
+                return False
+
+        bag = rosbag.Bag(bagfile_in)
+
+
+        # map<true_pose_topic,History<timestamp, SE3>>
+        dict_bspline, dict_history = ROSBag_TrueRelPoses.load_dict_splines(bag, dict_cfg, TrajectoryInterpolationType.cubic, min_dt=0.05)
+        for key, hist_pose in dict_history.items():
+            traj = Trajectory(hist_pose=hist_pose)
+            pos_stddev = traj.get_pos_stddev()
+            rpy_stddev = traj.get_rpy_stddev()
+            print("Topic %s: pos_stddev: %s, rpy_stdev: %s" %( str(key), str(pos_stddev), str(rpy_stddev)))
+
+
+
 
     @staticmethod
     def test_RelPoseEval_gazebo():
@@ -237,4 +270,5 @@ if __name__ == "__main__":
      #EvaluationTrail.test_RelPoseEval_same()
      #EvaluationTrail.test_RPLIDAR()
      #EvaluationTrail.test_RelPoseEval_synthetic_abspos()
+     #EvaluationTrail.get_pos_rpy_stddev_static_test()
      EvaluationTrail.test_RelPoseEval()

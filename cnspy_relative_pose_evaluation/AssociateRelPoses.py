@@ -47,14 +47,14 @@ from cnspy_trajectory_evaluation.AbsoluteTrajectoryError import AbsoluteTrajecto
 from cnspy_spatial_csv_formats.EstimationErrorType import EstimationErrorType
 from cnspy_spatial_csv_formats.ErrorRepresentationType import ErrorRepresentationType
 from cnspy_spatial_csv_formats.CSVSpatialFormatType import CSVSpatialFormatType
-from cnspy_spatial_csv_formats.CSVSpatialFormat import  CSVSpatialFormat
+from cnspy_spatial_csv_formats.CSVSpatialFormat import CSVSpatialFormat
 from cnspy_trajectory_evaluation.TrajectoryPosOrientNEES import TrajectoryPosOrientNEES
 from cnspy_trajectory_evaluation.TrajectoryPoseNEES import TrajectoryPoseNEES
 
 
 class AssociateRelPoseCfg(AssociateRangesCfg):
     label_angle = 'angle'
-    max_angle = np.pi*2
+    max_angle = np.pi * 2
     angle_error_val = 0
     pose_error_type = EstimationErrorType.type5
 
@@ -63,9 +63,9 @@ class AssociateRelPoseCfg(AssociateRangesCfg):
                  max_range=30, range_error_val=0, label_timestamp='t',
                  label_ID1='ID1',
                  label_ID2='ID2',
-                 label_range = 'range',
-                 label_angle = 'angle',
-                 pose_error_type = EstimationErrorType.type5):
+                 label_range='range',
+                 label_angle='angle',
+                 pose_error_type=EstimationErrorType.type5):
         self.label_timestame = label_timestamp
         self.label_ID1 = label_ID1
         self.label_ID2 = label_ID2
@@ -82,6 +82,7 @@ class AssociateRelPoseCfg(AssociateRangesCfg):
         self.range_error_val = range_error_val
         self.pose_error_type = pose_error_type
 
+
 class AssociateRelPoses(AssociateRanges):
     csv_df_gt = None
     csv_df_est = None
@@ -94,20 +95,20 @@ class AssociateRelPoses(AssociateRanges):
     cfg = AssociateRelPoseCfg()
     data_loaded = False
 
-    traj_err = None # TrajectoryEstimationError()
+    traj_err = None  # TrajectoryEstimationError()
     traj_est = None
     traj_gt = None
-    traj_nees = None # TrajectoryPosOrientNEES
+    traj_nees = None  # TrajectoryPosOrientNEES
 
     def __init__(self, fn_gt, fn_est, cfg):
         assert (isinstance(cfg, AssociateRelPoseCfg))
-        #AssociateRanges.__init__(self)
+        # AssociateRanges.__init__(self)
         self.cfg = cfg
         self.load(fn_gt, fn_est, cfg)
         self.compute_error()
 
     def load(self, fn_gt, fn_est, cfg):
-        assert(isinstance(cfg, AssociateRelPoseCfg))
+        assert (isinstance(cfg, AssociateRelPoseCfg))
         assert (os.path.exists(fn_gt)), str("Path to fn_gt does not exist!:" + str(fn_gt))
         assert (os.path.exists((fn_est))), str("Path to fn_est does not exist!:" + str(fn_est))
 
@@ -138,9 +139,11 @@ class AssociateRelPoses(AssociateRanges):
             self.csv_df_gt[cfg.label_range] = range_gt
         # compute angle
         if 'angle' not in self.csv_df_est:
-            self.csv_df_est[cfg.label_angle] = AssociateRelPoses.quat2ang_arr(self.csv_df_est[['qw','qx', 'qy', 'qz']].to_numpy())
+            self.csv_df_est[cfg.label_angle] = AssociateRelPoses.quat2ang_arr(
+                self.csv_df_est[['qw', 'qx', 'qy', 'qz']].to_numpy())
         if 'angle' not in self.csv_df_gt:
-            self.csv_df_gt[cfg.label_angle] = AssociateRelPoses.quat2ang_arr(self.csv_df_gt[['qw','qx', 'qy', 'qz']].to_numpy())
+            self.csv_df_gt[cfg.label_angle] = AssociateRelPoses.quat2ang_arr(
+                self.csv_df_gt[['qw', 'qx', 'qy', 'qz']].to_numpy())
 
         if cfg.remove_outliers:
             if cfg.max_range > 0:
@@ -154,7 +157,7 @@ class AssociateRelPoses(AssociateRanges):
                 indices3 = np.array([])
             idc = np.intersect1d(np.intersect1d(indices1, indices2), indices3)
             num_outliers = len(idc)
-            perc = 100.0*(num_outliers/max(1, len(self.csv_df_est.index)))
+            perc = 100.0 * (num_outliers / max(1, len(self.csv_df_est.index)))
             if num_outliers:
                 self.csv_df_est = AssociateRanges.sample_DataFrame(self.csv_df_est, idc)
                 print('AssociateRelPoses.load(): [%d] outliers (%.1f %%) removed!' % (num_outliers, perc))
@@ -223,7 +226,6 @@ class AssociateRelPoses(AssociateRanges):
         # perform Unzipping
         # res = list(zip(*test_list))
 
-
     def compute_error(self):
         if not self.data_loaded:
             return None
@@ -231,9 +233,9 @@ class AssociateRelPoses(AssociateRanges):
 
         Sigma_p_vec, Sigma_R_vec = PosOrientWithCov2DataFrame.cov_from_DataFrame(self.data_frame_est_matched)
         # Note: Trajectory uses the weired HTMQ quaternion conventions, with real part last...
-        self.traj_est = TrajectoryEstimated(t_vec = self.data_frame_est_matched['t'].to_numpy(),
-                                       p_vec=self.data_frame_est_matched[['tx', 'ty', 'tz']].to_numpy(),
-                                       q_vec=self.data_frame_est_matched[[ 'qx', 'qy', 'qz', 'qw']].to_numpy(),
+        self.traj_est = TrajectoryEstimated(t_vec=self.data_frame_est_matched['t'].to_numpy(),
+                                            p_vec=self.data_frame_est_matched[['tx', 'ty', 'tz']].to_numpy(),
+                                            q_vec=self.data_frame_est_matched[['qx', 'qy', 'qz', 'qw']].to_numpy(),
                                             Sigma_p_vec=Sigma_p_vec, Sigma_R_vec=Sigma_R_vec)
 
         if self.cfg.pose_error_type == EstimationErrorType.type5 or self.cfg.pose_error_type == EstimationErrorType.type6:
@@ -247,15 +249,19 @@ class AssociateRelPoses(AssociateRanges):
                                    est_err_type=self.cfg.pose_error_type,
                                    err_rep_type=err_rep_type)
         self.traj_est.set_format(est_fmt)
-        self.traj_gt = Trajectory(t_vec = self.data_frame_gt_matched['t'].to_numpy(),
-                                       p_vec=self.data_frame_gt_matched[['tx', 'ty', 'tz']].to_numpy(),
-                                       q_vec=self.data_frame_gt_matched[['qx', 'qy', 'qz', 'qw']].to_numpy())
+        self.traj_gt = Trajectory(t_vec=self.data_frame_gt_matched['t'].to_numpy(),
+                                  p_vec=self.data_frame_gt_matched[['tx', 'ty', 'tz']].to_numpy(),
+                                  q_vec=self.data_frame_gt_matched[['qx', 'qy', 'qz', 'qw']].to_numpy())
 
-        self.traj_err = AbsoluteTrajectoryError.compute_trajectory_error(traj_est=self.traj_est,traj_gt=self.traj_gt, traj_err_type=TrajectoryErrorType(est_fmt.estimation_error_type))
+        self.traj_err = AbsoluteTrajectoryError.compute_trajectory_error(traj_est=self.traj_est, traj_gt=self.traj_gt,
+                                                                         traj_err_type=TrajectoryErrorType(
+                                                                             est_fmt.estimation_error_type))
 
         # 1) traj_err is converted to error definition, e.g. on the se(3) or on so(3)x R3
-        traj_est_err = TrajectoryEstimationError(t_vec=self.traj_err.t_vec, p_vec=self.traj_err.p_vec, q_vec=self.traj_err.q_vec,
-                                                 est_err_type=est_fmt.estimation_error_type, err_rep_type=est_fmt.rotation_error_representation)
+        traj_est_err = TrajectoryEstimationError(t_vec=self.traj_err.t_vec, p_vec=self.traj_err.p_vec,
+                                                 q_vec=self.traj_err.q_vec,
+                                                 est_err_type=est_fmt.estimation_error_type,
+                                                 err_rep_type=est_fmt.rotation_error_representation)
         # 2) the NEES should be computed for R(3)xso(3) or  se(3):
         if self.cfg.pose_error_type == EstimationErrorType.type5 or self.cfg.pose_error_type == EstimationErrorType.type6:
             self.traj_nees = TrajectoryPosOrientNEES(traj_est=self.traj_est, traj_err=traj_est_err)
@@ -263,17 +269,53 @@ class AssociateRelPoses(AssociateRanges):
             self.traj_nees = TrajectoryPoseNEES(traj_est=self.traj_est, traj_err=traj_est_err)
         pass
 
+    def plot_position_err(self, cfg=TrajectoryPlotConfig(), fig=None, plot_NEES=True):
+        if not self.data_loaded:
+            return
+
+        if plot_NEES:
+            ax1 = fig.add_subplot(3, 1, 1)
+            ax2 = fig.add_subplot(3, 1, 2)
+            ax3 = fig.add_subplot(3, 1, 3)
+        else:
+            ax1 = fig.add_subplot(2, 1, 1)
+            ax2 = fig.add_subplot(2, 1, 2)
+            ax3 = None
+        TrajectoryError.plot_position_err(traj_est=self.traj_est,
+                                          traj_err=self.traj_err,
+                                          cfg=cfg, fig=fig,
+                                          axes=[ax1, ax2])
+
+        if self.traj_est.Sigma_p_vec is not None or self.traj_est.Sigma_T_vec is not None:
+            self.traj_est.ax_plot_p_sigma(ax2, cfg=cfg, colors=['darkred', 'darkgreen', 'darkblue'],
+                                          ls=PlotLineStyle(linewidth=0.5, linestyle='-.'))
+
+        if plot_NEES:
+            if isinstance(self.traj_nees, TrajectoryPosOrientNEES):
+                self.traj_nees.plot_NEES_p(ax1=ax3, relative_time=cfg.relative_time)
+                ax3.set_yscale('log')
+                ax3.grid()
+                return fig, ax1, ax2, ax3
+            else:
+                self.traj_nees.plot_NEES(ax1=ax3, relative_time=cfg.relative_time)
+                ax3.set_yscale('log')
+                ax3.grid()
+                return fig, ax1, ax2, ax3
+
+        else:
+            return fig, ax1, ax2, ax3
+
     def plot_traj_err(self, cfg=TrajectoryPlotConfig(), fig=None, plot_NEES=True):
         if not self.data_loaded:
             return
 
         if plot_NEES:
-            ax1 = fig.add_subplot(3,2,1)
-            ax2 = fig.add_subplot(3,2,3)
-            ax3 = fig.add_subplot(3,2,2)
-            ax4 = fig.add_subplot(3,2,4)
-            ax5 = fig.add_subplot(3,2,5)
-            ax6 = fig.add_subplot(3,2,6)
+            ax1 = fig.add_subplot(3, 2, 1)
+            ax2 = fig.add_subplot(3, 2, 3)
+            ax3 = fig.add_subplot(3, 2, 2)
+            ax4 = fig.add_subplot(3, 2, 4)
+            ax5 = fig.add_subplot(3, 2, 5)
+            ax6 = fig.add_subplot(3, 2, 6)
         else:
             ax1 = fig.add_subplot(221)
             ax2 = fig.add_subplot(222)
@@ -281,10 +323,10 @@ class AssociateRelPoses(AssociateRanges):
             ax4 = fig.add_subplot(224)
 
         TrajectoryError.plot_pose_err(traj_est=self.traj_est, traj_err=self.traj_err,
-                                                                cfg=cfg, fig=fig,
-                                                                angles=True, plot_rpy=True, axes=[ax1, ax2, ax3, ax4])
+                                      cfg=cfg, fig=fig,
+                                      angles=True, plot_rpy=True, axes=[ax1, ax2, ax3, ax4])
 
-        if self.traj_est.Sigma_R_vec is not None:
+        if self.traj_est.Sigma_R_vec is not None or self.traj_est.Sigma_T_vec is not None:
             self.traj_est.ax_plot_p_sigma(ax2, cfg=cfg, colors=['darkred', 'darkgreen', 'darkblue'],
                                           ls=PlotLineStyle(linewidth=0.5, linestyle='-.'))
             self.traj_est.ax_plot_rpy_sigma(ax4, cfg=cfg, colors=['darkred', 'darkgreen', 'darkblue'],
@@ -308,14 +350,13 @@ class AssociateRelPoses(AssociateRanges):
         else:
             return fig, ax1, ax2, ax3, ax4
 
-
     def plot_traj(self, cfg=TrajectoryPlotConfig(), fig=None):
         if not self.data_loaded:
             return
 
         fig, ax1, ax2, ax3, ax4 = TrajectoryError.plot_pose(traj_est=self.traj_est, traj_gt=self.traj_gt,
-                                                                cfg=cfg, fig=fig,
-                                                                angles=True, plot_rpy=True)
+                                                            cfg=cfg, fig=fig,
+                                                            angles=True, plot_rpy=True)
 
         return fig, ax1, ax2, ax3, ax4
 
@@ -327,12 +368,12 @@ class AssociateRelPoses(AssociateRanges):
             return angle
 
         [rows, cols] = q_arr.shape
-        assert(cols == 4);
+        assert (cols == 4);
         return np.apply_along_axis(myfunction, axis=1, arr=q_arr)
 
     @staticmethod
     def quats2ang_arr(q_arr1, q_arr2):
-        def myfunction(x,y):
+        def myfunction(x, y):
             q1 = UnitQuaternion(x).unit()
             q2 = UnitQuaternion(y).unit()
             # local error of x
@@ -342,8 +383,8 @@ class AssociateRelPoses(AssociateRanges):
 
         [rows1, cols1] = q_arr1.shape
         [rows2, cols2] = q_arr2.shape
-        assert(cols1 == 4 and cols2 ==4)
-        assert(rows1 == rows2)
+        assert (cols1 == 4 and cols2 == 4)
+        assert (rows1 == rows2)
 
         ang_arr = np.zeros([rows1])
         for idx in range(0, rows1):
@@ -381,7 +422,8 @@ class AssociateRelPoses(AssociateRanges):
             # x_arr = range(len(t_vec_gt))
             AssociateRanges.ax_plot_n_dim(ax, t_vec_gt, r_vec_gt, colors=[colors[0]], labels=[labels[0]], ls=ls_vec[0])
             # x_arr = range(len(t_vec_est))
-            AssociateRanges.ax_plot_n_dim(ax, t_vec_est, r_vec_est, colors=[colors[1]], labels=[labels[1]], ls=ls_vec[1])
+            AssociateRanges.ax_plot_n_dim(ax, t_vec_est, r_vec_est, colors=[colors[1]], labels=[labels[1]],
+                                          ls=ls_vec[1])
 
             ax.grid()
             ax.set_ylabel('angle')
@@ -391,8 +433,10 @@ class AssociateRelPoses(AssociateRanges):
         else:
             gt_indices_sorted = np.argsort(r_vec_gt, axis=0)
             x_arr = range(len(r_vec_gt))
-            AssociateRanges.ax_plot_n_dim(ax, x_arr, np.take_along_axis(r_vec_gt, gt_indices_sorted, axis=0), colors=[colors[0]], labels=[labels[0]], ls=ls_vec[0])
-            AssociateRanges.ax_plot_n_dim(ax, x_arr, np.take_along_axis(r_vec_est, gt_indices_sorted, axis=0), colors=[colors[1]], labels=[labels[1]], ls=ls_vec[1])
+            AssociateRanges.ax_plot_n_dim(ax, x_arr, np.take_along_axis(r_vec_gt, gt_indices_sorted, axis=0),
+                                          colors=[colors[0]], labels=[labels[0]], ls=ls_vec[0])
+            AssociateRanges.ax_plot_n_dim(ax, x_arr, np.take_along_axis(r_vec_est, gt_indices_sorted, axis=0),
+                                          colors=[colors[1]], labels=[labels[1]], ls=ls_vec[1])
             ax.grid()
             ax.set_ylabel('angle')
             ax.set_xlabel('angle sorted index')
@@ -400,7 +444,6 @@ class AssociateRelPoses(AssociateRanges):
 
         ax.legend()
         return fig, ax
-
 
     def compute_angle_error(self, sort=False, remove_outlier=True, max_error=None):
         if not self.data_loaded:
@@ -413,11 +456,11 @@ class AssociateRelPoses(AssociateRanges):
             t_vec_est = self.data_frame_est_matched[[self.cfg.label_timestamp]].to_numpy()
 
         if version_info[0] < 3:
-            r_vec_gt = self.data_frame_gt_matched.as_matrix([['qw','qx', 'qy', 'qz']])
-            r_vec_est = self.data_frame_est_matched.as_matrix([['qw','qx', 'qy', 'qz']])
+            r_vec_gt = self.data_frame_gt_matched.as_matrix([['qw', 'qx', 'qy', 'qz']])
+            r_vec_est = self.data_frame_est_matched.as_matrix([['qw', 'qx', 'qy', 'qz']])
         else:
-            r_vec_gt = self.data_frame_gt_matched[['qw','qx', 'qy', 'qz']].to_numpy()
-            r_vec_est = self.data_frame_est_matched[['qw','qx', 'qy', 'qz']].to_numpy()
+            r_vec_gt = self.data_frame_gt_matched[['qw', 'qx', 'qy', 'qz']].to_numpy()
+            r_vec_est = self.data_frame_est_matched[['qw', 'qx', 'qy', 'qz']].to_numpy()
 
         if not sort:
             # if r_est = r_true + r_err, then  r_err is an offset or the constant bias (gamma).
@@ -441,15 +484,15 @@ class AssociateRelPoses(AssociateRanges):
                 r_vec_err = np.delete(r_vec_err, indices, axis=0)
 
             gt_indices_sorted = np.argsort(x_arr, axis=0)
-            #x_arr = range(len(r_vec_gt))
+            # x_arr = range(len(r_vec_gt))
             t_vec = np.take_along_axis(x_arr, gt_indices_sorted, axis=0)
             r_vec = np.take_along_axis(r_vec_err, gt_indices_sorted, axis=0)
             return [t_vec, r_vec]
 
     def plot_angle_error(self, cfg_dpi=200, cfg_title="angle", sorted=False, remove_outlier=True, fig=None, ax=None,
-                    colors=['r'], labels=['error'],
-                    ls_vec=[PlotLineStyle(linestyle='-'), PlotLineStyle(linestyle='-.')],
-                    save_fn="", result_dir="."):
+                         colors=['r'], labels=['error'],
+                         ls_vec=[PlotLineStyle(linestyle='-'), PlotLineStyle(linestyle='-.')],
+                         save_fn="", result_dir="."):
         if not self.data_loaded:
             return
         if fig is None:
@@ -480,10 +523,9 @@ class AssociateRelPoses(AssociateRanges):
         stat = numpy_statistics(vNumpy=np.squeeze(np.asarray(r_vec_err)))
         return fig, ax, stat, r_vec_err
 
-
-
     def plot_angle_error_histogram(self, cfg_dpi=200, fig=None, ax=None,
-                                   save_fn="", result_dir=".", max_error=None, filter_histogramm=False, perc_inliers = 0.3,
+                                   save_fn="", result_dir=".", max_error=None, filter_histogramm=False,
+                                   perc_inliers=0.3,
                                    ID1=None, ID2=None):
         if not self.data_loaded:
             return fig, ax, None, None
@@ -503,25 +545,27 @@ class AssociateRelPoses(AssociateRanges):
         if not filter_histogramm:
             # add a 'best fit' line
             # NOTE: angle error is always positive, therefore, we create negative side, and mean is 0:
-            stat = numpy_statistics(vNumpy=np.squeeze(np.concatenate((np.asarray(r_vec_err), np.asarray(-1.0*r_vec_err)))))
-            #stat = numpy_statistics( vNumpy=np.squeeze(np.asarray(abs(r_vec_err))))
-            sigma = max(0.001, stat['std']) # avoid division by 0
+            stat = numpy_statistics(
+                vNumpy=np.squeeze(np.concatenate((np.asarray(r_vec_err), np.asarray(-1.0 * r_vec_err)))))
+            # stat = numpy_statistics( vNumpy=np.squeeze(np.asarray(abs(r_vec_err))))
+            sigma = max(0.001, stat['std'])  # avoid division by 0
             mu = stat['mean']
             y = ((1 / (np.sqrt(2 * np.pi) * sigma)) *
                  np.exp(-0.5 * (1 / sigma * (bins - mu)) ** 2))
 
-            scaling = len(r_vec_err)/num_bins
-            ax.plot(bins, y*scaling, '--', color='blue', alpha=0.75, label='PDF')
+            scaling = len(r_vec_err) / num_bins
+            ax.plot(bins, y * scaling, '--', color='blue', alpha=0.75, label='PDF')
             ax.set_ylabel('num. samples normalized')
             ax.set_xlabel('error [rad]')
-            ax.set_title(r'Angle Error Histogram ID' + str(ID1) + '-ID' + str(ID2) + ': $\mu$=' + str(round(mu, 3)) + ', $\sigma$=' + str(round(sigma, 3)))
+            ax.set_title(r'Angle Error Histogram ID' + str(ID1) + '-ID' + str(ID2) + ': $\mu$=' + str(
+                round(mu, 3)) + ', $\sigma$=' + str(round(sigma, 3)))
             ax.legend()
             return fig, ax, stat, r_vec_err
         else:
             idx_n_sorted = np.argsort(n)
 
             # assuming a certain percentage as inliers:
-            num_best_bins = int(num_bins*(0.5*perc_inliers))
+            num_best_bins = int(num_bins * (0.5 * perc_inliers))
 
             # compute the mean about the most frequent values:
             idx_best_bins = idx_n_sorted[-num_best_bins:]
@@ -534,32 +578,35 @@ class AssociateRelPoses(AssociateRanges):
             print('mean_best_errors %f' % mean_best_errors)
 
             # remove outliers
-            r_filtered_err = r_vec_err[(r_vec_err > (mean_best_errors - min_offset_errors*2.0)) &
-                                       (r_vec_err < (mean_best_errors + 2.0*max_offset_errors))]
+            r_filtered_err = r_vec_err[(r_vec_err > (mean_best_errors - min_offset_errors * 2.0)) &
+                                       (r_vec_err < (mean_best_errors + 2.0 * max_offset_errors))]
 
             # add a 'best fit' line
             # NOTE: angle error is always positive, therefore, we create negative side, and mean is 0:
-            stat = numpy_statistics(vNumpy=np.squeeze(np.concatenate((np.asarray(r_filtered_err), np.asarray(-1.0*r_filtered_err)))))
-            #stat = numpy_statistics(vNumpy=np.squeeze(np.asarray(abs(r_filtered_err))))
-            num_plot_bins = int(num_bins*(perc_inliers))
-            n_, bins_, patches_ = ax.hist(r_filtered_err, num_plot_bins, density=True, color='blue', alpha=0.75, label='Histogram (filtered)')
-            sigma = max(0.001, stat['std']) # avoid division by 0
+            stat = numpy_statistics(
+                vNumpy=np.squeeze(np.concatenate((np.asarray(r_filtered_err), np.asarray(-1.0 * r_filtered_err)))))
+            # stat = numpy_statistics(vNumpy=np.squeeze(np.asarray(abs(r_filtered_err))))
+            num_plot_bins = int(num_bins * (perc_inliers))
+            n_, bins_, patches_ = ax.hist(r_filtered_err, num_plot_bins, density=True, color='blue', alpha=0.75,
+                                          label='Histogram (filtered)')
+            sigma = max(0.001, stat['std'])  # avoid division by 0
             mu = stat['mean']
-            scaling = 1.0; #len(r_filtered_err)/num_plot_bins
+            scaling = 1.0;  # len(r_filtered_err)/num_plot_bins
             y = ((1 / (np.sqrt(2 * np.pi) * sigma)) *
                  np.exp(-0.5 * (1 / sigma * (bins_ - mu)) ** 2))
-            ax.plot(bins_, y*scaling, '--', color='green', label='PDF (filtered)')
+            ax.plot(bins_, y * scaling, '--', color='green', label='PDF (filtered)')
             ax.set_ylabel('num. samples normalized')
             ax.set_xlabel('error [rad]')
-            ax.set_title(r'Angle Error Histogram (filtered) ID' + str(ID1) + '-ID' + str(ID2) + ': $\mu$=' + str(round(mu, 3)) + ', $\sigma$=' + str(round(sigma, 3)))
+            ax.set_title(r'Angle Error Histogram (filtered) ID' + str(ID1) + '-ID' + str(ID2) + ': $\mu$=' + str(
+                round(mu, 3)) + ', $\sigma$=' + str(round(sigma, 3)))
             ax.legend()
             return fig, ax, stat, r_filtered_err
         pass
 
     def plot_NEES(self, cfg_dpi=200, cfg_title="NEES", fig=None, ax=None,
-                 label='',
-                 ls_vec=[PlotLineStyle(linestyle='-', linecolor='r'), PlotLineStyle(linestyle='-', linecolor='g')],
-                 save_fn="", result_dir=".", relative_time=True):
+                  label='',
+                  ls_vec=[PlotLineStyle(linestyle='-', linecolor='r'), PlotLineStyle(linestyle='-', linecolor='g')],
+                  save_fn="", result_dir=".", relative_time=True):
         if not self.data_loaded:
             return
         if fig is None:
@@ -589,5 +636,5 @@ class AssociateRelPoses(AssociateRanges):
             ax.grid()
 
         ax.legend()
-        #AssociateRanges.show_save_figure(fig=fig, result_dir=result_dir, save_fn=save_fn, show=False)
+        # AssociateRanges.show_save_figure(fig=fig, result_dir=result_dir, save_fn=save_fn, show=False)
         return fig, ax

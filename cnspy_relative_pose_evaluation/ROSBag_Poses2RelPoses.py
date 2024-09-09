@@ -187,11 +187,11 @@ class ROSBag_Poses2RelPoses:
 
         ## extract the poses of the desired topics from the BAG file
         round_decimals = 4
-        dict_history = ROSBag_Pose.extract_poses(bag, num_messages,
-                                                 dict_cfg["true_pose_topics"],
-                                                 dict_cfg["true_pose_topics"],
-                                                 round_decimals,
-                                                 dict_T_BODY_SENSOR)
+        dict_history = ROSBag_Pose.extract_poses(bag=bag, num_messages=num_messages,
+                                                 dict_topic_pose_body=dict_cfg["true_pose_topics"],
+                                                 dict_senor_topic_pose=dict_cfg["true_pose_topics"],
+                                                 round_decimals=round_decimals,
+                                                 dict_T_BODY_SENSOR=dict_T_BODY_SENSOR)
 
         ## TODO:
         try:  # else already exists
