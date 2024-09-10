@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='cnspy_relative_pose_evaluation',
-    version="0.1.10",
+    version="0.1.11",
     author='Roland Jung',
     author_email='roland.jung@aau.at',
     description='Evaluation of relative pose measurements.',
@@ -40,9 +40,10 @@ setup(
                       'configparser',
                       'cnspy_numpy_utils',
                       'cnspy_timestamp_association>=0.2.1',
-                      'cnspy_trajectory_evaluation>=0.2.5',
-                      'cnspy_ranging_evaluation>=0.2.7',
-                      'cnspy_csv2dataframe>=0.2.2' ],
+                      'cnspy_trajectory>=0.2.8',
+                      'cnspy_trajectory_evaluation>=0.2.6',
+                      'cnspy_ranging_evaluation>=0.2.8',
+                      'cnspy_csv2dataframe>=0.2.3' ],
     entry_points={
         'console_scripts': [
             'RelPoseMeasEvaluationTool = cnspy_relative_pose_evaluation.RelPoseMeasEvaluationTool:main',
