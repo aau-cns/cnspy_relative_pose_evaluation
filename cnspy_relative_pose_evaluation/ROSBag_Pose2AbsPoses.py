@@ -30,7 +30,7 @@ from enum import Enum
 
 from spatialmath import UnitQuaternion, SE3, base
 
-from cnspy_ranging_evaluation.ROSBag_Pose import ROSBag_Pose
+from cnspy_trajectory.ROSBag_Pose import ROSBag_Pose
 from cnspy_trajectory.HistoryBuffer import get_key_from_value
 from cnspy_relative_pose_evaluation.ROSBag_TrueRelPoses import interpolate_pose, random_orientation
 from geometry_msgs.msg import PoseWithCovarianceStamped
@@ -188,7 +188,7 @@ class ROSBag_Pose2AbsPoses:
                                                  dict_senor_topic_pose=dict_cfg["sensor_topics"],
                                                  round_decimals=round_decimals,
                                                  dict_T_BODY_SENSOR=dict_T_BODY_SENSOR)
-        if dict_history is None:
+        if len(dict_history) == 0:
             return False
 
         cnt = 0

@@ -33,7 +33,7 @@ from spatialmath.base.quaternions import qslerp
 
 from cnspy_trajectory.BsplineSE3 import BsplineSE3, TrajectoryInterpolationType
 from cnspy_trajectory.HistoryBuffer import get_key_from_value
-from cnspy_ranging_evaluation.ROSBag_Pose import ROSBag_Pose
+from cnspy_trajectory.ROSBag_Pose import ROSBag_Pose
 
 from mrs_msgs.msg import PoseWithCovarianceArrayStamped, PoseWithCovarianceIdentified
 
@@ -204,11 +204,18 @@ class ROSBag_TrueRelPoses:
         num_messages = info_dict['messages']
         bag_topics = info_dict['topics']
 
-        ROSBag_TrueRelPoses.check_topics(bag_topics, dict_cfg, num_messages, verbose)
+        found = ROSBag_TrueRelPoses.check_topics(bag_topics, dict_cfg, num_messages, verbose)
+        if verbose and not found:
+            print("ROSBag_TrueRelPoses: desired topics not found!")
 
         round_decimals = 4
         dict_bsplines, dict_history = ROSBag_TrueRelPoses.load_dict_splines(bag, dict_cfg, interp_type, min_dt,
                                                                               num_messages, round_decimals)
+        if len(dict_bsplines) == 0:
+            if verbose:
+                print("ROSBag_TrueRelPoses: No poses found!")
+            bag.close()
+            return False
 
         cnt = 0
         try:  # else already exists
@@ -321,8 +328,9 @@ class ROSBag_TrueRelPoses:
         return True
 
     @staticmethod
-    def check_topics(bag_topics, dict_cfg, num_messages, verbose):
+    def check_topics(bag_topics, dict_cfg, num_messages, verbose) -> bool:
         # check if desired topics are in
+        found = True
         for id, topicName in dict_cfg["true_pose_topics"].items():
             found_ = False
             for topic_info in bag_topics:
@@ -330,6 +338,7 @@ class ROSBag_TrueRelPoses:
                     found_ = True
             if not found_:
                 print("# WARNING: desired topic [" + str(topicName) + "] is not in bag file!")
+                found = False
         for id, topicName in dict_cfg["relpose_topics"].items():
             found_ = False
             for topic_info in bag_topics:
@@ -337,8 +346,10 @@ class ROSBag_TrueRelPoses:
                     found_ = True
             if not found_:
                 print("# WARNING: desired topic [" + str(topicName) + "] is not in bag file!")
+                found = False
         if verbose:
             print("\nROSBag_TrueRelPoses: num messages " + str(num_messages))
+        return found
 
     @staticmethod
     def load_dict_splines(bag, dict_cfg, interp_type, min_dt=0.05, num_messages=None, round_decimals = 4):
@@ -376,6 +387,7 @@ class ROSBag_TrueRelPoses:
                     bspline.feed_pose_history(hist_pose=hist, uniform_timestamps=False)
                 dict_bsplines[true_pose_topic] = bspline
         return dict_bsplines, dict_history
+
 
 
 def main():

@@ -31,7 +31,7 @@ from numpy import linalg as LA
 from spatialmath import UnitQuaternion, SO3, SE3
 from spatialmath.base.quaternions import qslerp
 from cnspy_trajectory.HistoryBuffer import get_key_from_value
-from cnspy_ranging_evaluation.ROSBag_Pose import ROSBag_Pose
+from cnspy_trajectory.ROSBag_Pose import ROSBag_Pose
 
 
 def relpose_to_csv_line(timestamp, ID1, ID2, Pose, round_decimals=4):
