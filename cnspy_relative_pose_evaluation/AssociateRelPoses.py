@@ -153,20 +153,22 @@ class AssociateRelPoses(AssociateRanges):
                 self.csv_df_gt[['qw', 'qx', 'qy', 'qz']].to_numpy())
 
         if cfg.remove_outliers:
+            N = len(self.csv_df_est.index)
             if cfg.max_range > 0:
                 indices1 = np.nonzero(self.csv_df_est[cfg.label_range] < cfg.max_range)
             else:
-                indices1 = np.array([])
+                indices1 = np.array(range(1, N)) # all are inliers
             indices2 = np.nonzero(self.csv_df_est[cfg.label_range] > 0)
             if cfg.max_angle > 0:
                 indices3 = np.nonzero(abs(self.csv_df_est[cfg.label_angle]) < cfg.max_angle)
             else:
-                indices3 = np.array([])
-            idc = np.intersect1d(np.intersect1d(indices1, indices2), indices3)
-            num_outliers = len(idc)
-            self.perc_outliers = 100.0 * (num_outliers / max(1, len(self.csv_df_est.index)))
-            if num_outliers:
-                self.csv_df_est = AssociateRanges.sample_DataFrame(self.csv_df_est, idc)
+                indices3 = np.array(range(1, N)) # all are inliers
+
+            idx_inliers = np.intersect1d(np.intersect1d(indices1, indices2), indices3)
+            num_outliers = N - len(idx_inliers)
+            self.perc_outliers = 100.0 * (num_outliers / max(1, N))
+            if len(idx_inliers):
+                self.csv_df_est = AssociateRanges.sample_DataFrame(self.csv_df_est, idx_inliers)
                 print('AssociateRelPoses.load(): [%d] outliers (%.1f %%) removed!' % (num_outliers, self.perc_outliers))
         else:
             indices = ((self.csv_df_est[cfg.label_range]) < 0)
@@ -232,6 +234,12 @@ class AssociateRelPoses(AssociateRanges):
         # using zip() and * operator to
         # perform Unzipping
         # res = list(zip(*test_list))
+
+    def num_samples(self) -> int:
+        if self.data_loaded:
+            return len(self.data_frame_est_matched.index)
+        else:
+            return 0
 
     def compute_error(self):
         if not self.data_loaded:
