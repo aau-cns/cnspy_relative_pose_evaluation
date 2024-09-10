@@ -203,15 +203,15 @@ class RelPose_ROSBag2CSV:
     # extract_to_one
     #
     @staticmethod
-    def extract_to_one(bagfile_name, cfg, fn, result_dir="", ext="csv", verbose=False, with_cov=False ):
+    def extract_to_one(bagfile_name, cfg, fn, result_dir="", ext="csv", verbose=False, with_cov=False ) -> (bool, set):
         if not os.path.isfile(bagfile_name):
             print("RelPose_ROSBag2CSV: could not find file: %s" % bagfile_name)
-            return False
+            return False, set()
 
         cfg = os.path.abspath(cfg)
         if not os.path.isfile(cfg):
             print("RelPose_ROSBag2CSV: could not find file: %s" % cfg)
-            return False
+            return False, set()
 
         if verbose:
             print("RelPose_ROSBag2CSV:")
@@ -224,7 +224,7 @@ class RelPose_ROSBag2CSV:
             dict_cfg = yaml.load(yamlfile, Loader=yaml.FullLoader)
             if "relpose_topics" not in dict_cfg:
                 print("[relpose_topics] does not exist in fn=" + cfg)
-                return False
+                return False, set()
             print("Read successful")
 
         if verbose:
@@ -234,7 +234,7 @@ class RelPose_ROSBag2CSV:
         topic_list = dict_cfg["relpose_topics"].values()
         if len(topic_list) < 1:
             print("RelPose_ROSBag2CSV: no topics specified!")
-            return False
+            return False, set()
 
         ## Open BAG file:
         try:
@@ -243,7 +243,7 @@ class RelPose_ROSBag2CSV:
             if verbose:
                 print("RelPose_ROSBag2CSV: Unexpected error!")
 
-            return False
+            return False, set()
 
         info_dict = yaml.load(bag._get_yaml_info(), Loader=yaml.FullLoader)
 
@@ -251,7 +251,7 @@ class RelPose_ROSBag2CSV:
             if verbose:
                 print("RelPose_ROSBag2CSV: Unexpected error, bag file might be empty!")
             bag.close()
-            return False
+            return False, set()
 
         ## create result dir:
         if result_dir == "":
@@ -310,6 +310,8 @@ class RelPose_ROSBag2CSV:
 
         round_decimals = 4
         cnt = 0
+
+        IDs = set()
         ## extract the desired topics from the BAG file
         for topic, msg, t in tqdm(bag.read_messages(), total=num_messages, unit="msgs"):
             if topic in topic_list:
@@ -318,8 +320,10 @@ class RelPose_ROSBag2CSV:
 
                     ID1 = get_key_from_value(dict_cfg["relpose_topics"], topic)
                     timestamp = msg.header.stamp.to_sec()
+                    IDs.add(ID1)
                     for pose_id in msg.poses:
                         content = RelPose_ROSBag2CSV.to_csv_line(timestamp, ID1, pose_id, round_decimals, with_cov)
+                        IDs.add(pose_id.id)
                         file_writer.writerow(content)
                         cnt += 1
 
@@ -329,9 +333,9 @@ class RelPose_ROSBag2CSV:
 
         if verbose:
             print("\nRelPose_ROSBag2CSV.extract_to_one(): extracted [%d] msgs." % cnt)
-
+            print("\nRelPose_ROSBag2CSV.extract_to_one(): IDs found: [%s]." % str(IDs))
         bag.close()
-        return True
+        return True, IDs
 
     @staticmethod
     def get_header(with_cov=False):

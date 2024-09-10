@@ -173,6 +173,7 @@ class RelPoseMeasEvaluation:
                                      'ARMSE_p': dict(),
                                      'ARMSE_q_deg': dict(),
                                      'scale': dict(),
+                                     'samples': dict(),
                                      }
                 pass
 
@@ -193,6 +194,9 @@ class RelPoseMeasEvaluation:
                 cfg.ID2 = int(ID2)
                 cfg_title = str("ID" + str(ID1) + " to ID" + str(ID2))
                 assoc = AssociateRelPoses(fn_gt=fn_gt, fn_est=fn_est, cfg=cfg)
+                if not assoc.data_loaded:
+                    print("WARING: no measurement for " + cfg_title + "found!")
+                    continue
                 assoc.save(result_dir=result_dir, prefix=prefix + cfg_title)
 
                 if save_statistics:
@@ -206,7 +210,7 @@ class RelPoseMeasEvaluation:
                     dict_statistics_i['ARMSE_p'][ID2] = round(float(ARMSE_p),2)
                     dict_statistics_i['ARMSE_q_deg'][ID2] = round(float(ARMSE_q_deg),2)
                     dict_statistics_i['scale'][ID2] = round(float(assoc.traj_err.scale),2)
-
+                    dict_statistics_i['samples'][ID2] = assoc.num_samples()
                 if plot_timestamps:
                     ax_t = fig_t.add_subplot(n_rows, n_cols, idx)
                     assoc.plot_timestamps(fig=fig_t, ax=ax_t, calc_error=True, cfg_title=cfg_title)

@@ -111,9 +111,10 @@ class RelPoseMeasEvaluationTool:
         fn_meas_ranges = str(result_dir + '/all-meas-ranges.csv')
         fn_gt_ranges = str(result_dir + '/all-true-ranges.csv')
 
+        IDs_found = None
         # 1) extract all measurements to CSV
         if not os.path.isfile(fn_meas_ranges):
-            res = RelPose_ROSBag2CSV.extract_to_one(bagfile_name=bagfile_in,
+            res, IDs_found = RelPose_ROSBag2CSV.extract_to_one(bagfile_name=bagfile_in,
                                                     cfg=cfg_fn,
                                                     fn=fn_meas_ranges,
                                                     result_dir=result_dir,
@@ -122,9 +123,10 @@ class RelPoseMeasEvaluationTool:
 
         bagfile_out = str(result_dir + '/true-ranges.bag')
 
+
         # 2) create a clean bag file
         if not os.path.isfile(bagfile_out):
-            res = ROSBag_TrueRelPoses.extract(bagfile_in_name=bagfile_in,
+            res= ROSBag_TrueRelPoses.extract(bagfile_in_name=bagfile_in,
                                               bagfile_out_name=bagfile_out,
                                               cfg=cfg_fn,
                                               verbose=verbose,
@@ -134,9 +136,9 @@ class RelPoseMeasEvaluationTool:
                                               interp_type=interp_type,
                                               min_dt=min_dt)
 
-        if not os.path.isfile(fn_gt_ranges):
+        if not os.path.isfile(fn_gt_ranges) or IDs_found is None:
             # 3) extract all measurements from the clean bagfile
-            res = RelPose_ROSBag2CSV.extract_to_one(bagfile_name=bagfile_out,
+            res, IDs_found = RelPose_ROSBag2CSV.extract_to_one(bagfile_name=bagfile_out,
                                                     cfg=cfg_fn,
                                                     fn=fn_gt_ranges,
                                                     result_dir=result_dir,
@@ -162,6 +164,16 @@ class RelPoseMeasEvaluationTool:
             cfg.max_range = max_range
         if max_angle is not None:
             cfg.max_angle = max_angle
+
+        if IDs_found is not None:
+            # remove IDs from Sensor_ID_arr, if they are not part of the bagfile!
+            IDs = list()
+            for ID in Sensor_ID_arr:
+                if ID in IDs_found:
+                    IDs.append(ID)
+                elif verbose:
+                    print("* Sensor ID= " + str(ID) + "was not found in the rosbag!" )
+            Sensor_ID_arr = IDs
 
         eval = RelPoseMeasEvaluation(fn_gt=fn_gt_ranges,
                                      fn_est=fn_meas_ranges,
