@@ -58,14 +58,20 @@ class AssociateRelPoseCfg(AssociateRangesCfg):
     angle_error_val = 0
     pose_error_type = EstimationErrorType.type5
 
-    def __init__(self, ID1=None, ID2=None, relative_timestamps=False,
-                 max_difference=0.02, subsample=0, verbose=False, remove_outliers=False,
-                 max_range=30, range_error_val=0, label_timestamp='t',
-                 label_ID1='ID1',
-                 label_ID2='ID2',
-                 label_range='range',
-                 label_angle='angle',
-                 pose_error_type=EstimationErrorType.type5):
+    def __init__(self, ID1=None, ID2=None,
+                 relative_timestamps=False,
+                 max_difference: float = 0.02,
+                 subsample: int = 0,
+                 verbose=False,
+                 remove_outliers=False,
+                 max_range: float = 30,
+                 range_error_val: float = 0,
+                 label_timestamp: str = 't',
+                 label_ID1: str = 'ID1',
+                 label_ID2: str = 'ID2',
+                 label_range: str = 'range',
+                 label_angle: str = 'angle',
+                 pose_error_type: EstimationErrorType = EstimationErrorType.type5):
         self.label_timestame = label_timestamp
         self.label_ID1 = label_ID1
         self.label_ID2 = label_ID2
@@ -280,7 +286,6 @@ class AssociateRelPoses(AssociateRanges):
             dict_nees['nees_T'] = self.traj_nees.get_avg_NEES()
 
         return dict_nees
-
 
     def plot_position_err(self, cfg=TrajectoryPlotConfig(), fig=None, plot_NEES=True):
         if not self.data_loaded:

@@ -30,6 +30,7 @@ import numpy as np
 from numpy import linalg as LA
 from spatialmath import UnitQuaternion, SO3, SE3, Quaternion, base
 
+from cnspy_spatial_csv_formats.EstimationErrorType import EstimationErrorType
 from std_msgs.msg import Header, Time
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformStamped
 
@@ -43,10 +44,21 @@ from cnspy_relative_pose_evaluation.RelPoseMeasEvaluation import RelPoseMeasEval
 
 class RelPoseMeasEvaluationTool:
     @staticmethod
-    def evaluate(bagfile_in, cfg_fn, result_dir=None, verbose=True, show_plot=True, save_plot=True,
-                 ID_arr=None, filter_histogram=True, extra_plots=True, max_range=None, max_angle=None,
-                 remove_outliers=True, interp_type=TrajectoryInterpolationType.linear,
-                 min_dt=0.05):
+    def evaluate(bagfile_in:str,
+                 cfg_fn:str,
+                 result_dir=None,
+                 verbose=True,
+                 show_plot=True,
+                 save_plot=True,
+                 ID_arr=None,
+                 filter_histogram=True,
+                 extra_plots=True,
+                 max_range=None,
+                 max_angle=None,
+                 remove_outliers=True,
+                 interp_type: TrajectoryInterpolationType = TrajectoryInterpolationType.linear,
+                 min_dt=0.05,
+                 pose_error_type: EstimationErrorType = EstimationErrorType.type5):
         if not os.path.isfile(bagfile_in):
             print("RangeEvaluationTool: could not find file: %s" % bagfile_in)
             return False
@@ -138,6 +150,7 @@ class RelPoseMeasEvaluationTool:
                                   subsample=0,
                                   verbose=verbose,
                                   remove_outliers=remove_outliers,
+                                  pose_error_type=pose_error_type,
                                   range_error_val=0,
                                   label_timestamp='t',
                                   label_ID1='ID1',
@@ -211,6 +224,10 @@ def main():
     parser.add_argument('--min_dt',
                         help='temporal displacement of cubic spline control points',
                         default=0.05)
+    parser.add_argument('--pose_error_type', help='Covariance perturbation type (space) of relative pose measurements',
+                        choices=EstimationErrorType.list(),
+                        default=str(EstimationErrorType.type5))
+
     tp_start = time.time()
     args = parser.parse_args()
 
@@ -225,7 +242,10 @@ def main():
                                        extra_plots=args.extra_plots,
                                        filter_histogram=args.filter_histogram,
                                        remove_outliers=not args.keep_outliers,
-                                       interp_type=TrajectoryInterpolationType(args.interpolation_type))
+                                       interp_type=TrajectoryInterpolationType(args.interpolation_type),
+                                       min_dt=float(args.min_dt),
+                                       pose_error_type=EstimationErrorType(args.pose_error_type)
+                                       )
     pass
     print(" ")
     print("finished after [%s sec]\n" % str(time.time() - tp_start))
