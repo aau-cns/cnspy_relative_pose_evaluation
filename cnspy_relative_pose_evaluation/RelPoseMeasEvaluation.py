@@ -72,9 +72,6 @@ class RelPoseMeasEvaluation:
             prefix = ''
 
         statistics_file = None
-        if save_statistics and not plot_range_histogram:
-            print("RelPoseMeasEvaluation: Warning save_statistics can only be used in combination with plot_histogram")
-            plot_range_histogram = True
         if save_statistics:
             if not os.path.exists(result_dir):
                 os.makedirs(result_dir)
@@ -86,9 +83,10 @@ class RelPoseMeasEvaluation:
                        'time': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
                        'fn_gt': fn_gt,
                        'fn_est': fn_est,
-                       'filter_histogram': filter_histogram,
-                       'outliers removed': cfg.remove_outliers,
+                       'filter histogram': filter_histogram,
+                       'remove outliers': cfg.remove_outliers,
                        'outliers max range': cfg.max_range,
+                       'pose error type': str(cfg.pose_error_type),
                        'outliers min range': 0,
                        'outliers max angle': cfg.max_angle,
                        'result_dir': result_dir}, statistics_file, sort_keys=False, explicit_start=False,
@@ -166,8 +164,16 @@ class RelPoseMeasEvaluation:
                 fig_ha = plt.figure(figsize=(20, 15), dpi=int(200))
                 fig_ha.suptitle('Angle Error Histograms of ID=' + str(ID1), fontsize=16)
             if save_statistics:
-                dict_statistics_i = {'ID': ID1, 'range_constant_bias_table': dict(), 'range_noise_table': dict(),
-                                     'angle_constant_bias_table': dict(), 'angle_noise_table': dict()}
+                dict_statistics_i = {'ID': ID1,
+                                     'range_constant_bias_table': dict(),
+                                     'range_noise_table': dict(),
+                                     'angle_constant_bias_table': dict(),
+                                     'angle_noise_table': dict(),
+                                     'percent_outliers' : dict(),
+                                     'ARMSE_p': dict(),
+                                     'ARMSE_q_deg': dict(),
+                                     'scale': dict(),
+                                     }
                 pass
 
             n = len(ID2_arr) - 1
@@ -188,6 +194,18 @@ class RelPoseMeasEvaluation:
                 cfg_title = str("ID" + str(ID1) + " to ID" + str(ID2))
                 assoc = AssociateRelPoses(fn_gt=fn_gt, fn_est=fn_est, cfg=cfg)
                 assoc.save(result_dir=result_dir, prefix=prefix + cfg_title)
+
+                if save_statistics:
+                    dict_statistics_i['percent_outliers'][ID2] = round(float(assoc.perc_outliers), 2)
+                    dict_nees = assoc.avg_NEES()
+                    for key, val in dict_nees.items():
+                        if not (key in dict_statistics_i):
+                            dict_statistics_i[key] = dict()
+                        dict_statistics_i[key][ID2] = round(float(val),2)
+                    ARMSE_p, ARMSE_q_deg = assoc.traj_err.get_ARMSE()
+                    dict_statistics_i['ARMSE_p'][ID2] = round(float(ARMSE_p),2)
+                    dict_statistics_i['ARMSE_q_deg'][ID2] = round(float(ARMSE_q_deg),2)
+                    dict_statistics_i['scale'][ID2] = round(float(assoc.traj_err.scale),2)
 
                 if plot_timestamps:
                     ax_t = fig_t.add_subplot(n_rows, n_cols, idx)
@@ -238,6 +256,8 @@ class RelPoseMeasEvaluation:
                 if plot_NEES:
                     ax_n = fig_n.add_subplot(n_rows, n_cols, idx)
                     assoc.plot_NEES(fig=fig_n, ax=ax_n, relative_time=True, cfg_title=cfg_title)
+
+
                 if plot_range_error:
                     ax_e = fig_re.add_subplot(n_rows, n_cols, idx)
                     [fig_, ax_, stat, r_vec_err_] = assoc.plot_range_error(fig=fig_re, ax=ax_e,

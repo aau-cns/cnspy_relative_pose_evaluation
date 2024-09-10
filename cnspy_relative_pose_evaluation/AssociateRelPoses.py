@@ -94,6 +94,7 @@ class AssociateRelPoses(AssociateRanges):
 
     cfg = AssociateRelPoseCfg()
     data_loaded = False
+    perc_outliers = 0.0
 
     traj_err = None  # TrajectoryEstimationError()
     traj_est = None
@@ -157,10 +158,10 @@ class AssociateRelPoses(AssociateRanges):
                 indices3 = np.array([])
             idc = np.intersect1d(np.intersect1d(indices1, indices2), indices3)
             num_outliers = len(idc)
-            perc = 100.0 * (num_outliers / max(1, len(self.csv_df_est.index)))
+            self.perc_outliers = 100.0 * (num_outliers / max(1, len(self.csv_df_est.index)))
             if num_outliers:
                 self.csv_df_est = AssociateRanges.sample_DataFrame(self.csv_df_est, idc)
-                print('AssociateRelPoses.load(): [%d] outliers (%.1f %%) removed!' % (num_outliers, perc))
+                print('AssociateRelPoses.load(): [%d] outliers (%.1f %%) removed!' % (num_outliers, self.perc_outliers))
         else:
             indices = ((self.csv_df_est[cfg.label_range]) < 0)
             self.csv_df_est.loc[indices, cfg.label_range] = cfg.range_error_val
@@ -268,6 +269,18 @@ class AssociateRelPoses(AssociateRanges):
         else:
             self.traj_nees = TrajectoryPoseNEES(traj_est=self.traj_est, traj_err=traj_est_err)
         pass
+
+    def avg_NEES(self) -> dict:
+        dict_nees = dict()
+        if isinstance(self.traj_nees, TrajectoryPosOrientNEES):
+            p, R = self.traj_nees.get_avg_NEES()
+            dict_nees['nees_p'] = p
+            dict_nees['nees_R'] = R
+        elif isinstance(self.traj_nees, TrajectoryPoseNEES):
+            dict_nees['nees_T'] = self.traj_nees.get_avg_NEES()
+
+        return dict_nees
+
 
     def plot_position_err(self, cfg=TrajectoryPlotConfig(), fig=None, plot_NEES=True):
         if not self.data_loaded:

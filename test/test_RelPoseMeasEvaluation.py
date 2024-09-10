@@ -29,8 +29,8 @@ class RelPoseMeasEvaluation_Test(unittest.TestCase):
     def test_plot_NEES(self):
         dict_fn_gt = dict({'GT': SAMPLE_DATA_DIR + '/synth/meas_B1B2_N1000_ref_np-0_nR-0.csv',
                            'CUBIC': SAMPLE_DATA_DIR + '/synth/meas_B1B2_N970_SUB10_CUBIC_np-0.01_nR-0.01.csv',
-                           'LINEAR': SAMPLE_DATA_DIR + '/synth/meas_B1B2_N991_SUB10_LINEAR_np-0.01_nR-0.01.csv'})
-
+                           'LINEAR': SAMPLE_DATA_DIR + '/synth/meas_B1B2_N991_SUB10_LINEAR_np-0.01_nR-0.01.csv'
+                           })
         for key,fn_gt in dict_fn_gt.items():
             err_types = list([EstimationErrorType.type1, EstimationErrorType.type2, EstimationErrorType.type5])
             #err_types = list([EstimationErrorType.type1])
@@ -56,7 +56,7 @@ class RelPoseMeasEvaluation_Test(unittest.TestCase):
                                       plot_pose=False,
                                       plot_NEES=False,
                                       verbose=True,
-                                      save_statistics=False)
+                                      save_statistics=True)
 
 
     def test_with_noise(self):
