@@ -61,17 +61,24 @@ relpose_topics: {0: "/uav10/data_handler/uvdar_fcu", 1: "/uav11/data_handler/uvd
 
 ## Important notes for the NEES computation
 
-The covariance of the measurements are assumed to represent the position uncertainty in meters and in the origin of reference frame of the observer, e.g. the camera. The covariance of the measured orientation is assumed to be in radian representing the uncertainty about the roll-pitch-yaw angles about the x-y-z-axes in zyx order (Rz(y)*Ry(p)*Rx(r)) of the body frame (local), thus `EstimationErrorType.type5`: 
-* **TRUE = EST + ERR for positions R(3);** 
-* **TRUE = EST \oplus ERR for rotations SO(3);**
-* **global position error, local orientation error;**.
+The covariance of the measurements are assumed to represent the position uncertainty in meters and the orientation uncertainty in radians. Currently, three perturbation types are supported `EstimationErrorType.type1`, `EstimationErrorType.type2`, or `EstimationErrorType.type5`.
+
+type1:
+[<img src="/doc/img/e-type1.png" width="250"/>](./doc/img/e-type1.png)
+
+type2:
+[<img src="/doc/img/e-type2.png" width="250"/>](./doc/img/e-type2.png)
+
+type5:
+[<img src="/doc/img/e-type5.png" width="250"/>](./doc/img/e-type5.png)
 
 Please check out: [ErrorRepresentationType](https://github.com/aau-cns/cnspy_spatial_csv_formats/blob/main/cnspy_spatial_csv_formats/ErrorRepresentationType.py) and [EstimationErrorType](https://github.com/aau-cns/cnspy_spatial_csv_formats/blob/main/cnspy_spatial_csv_formats/EstimationErrorType.py)
 
 ## Usage
 
 ```commandline
-usage: RelPoseMeasEvaluationTool.py [-h] [--result_dir RESULT_DIR] [--bagfile BAGFILE] --cfg CFG [--save_plot] [--show_plot] [--verbose] [--extra_plots] [--keep_outliers] [--filter_histogram] [--max_range MAX_RANGE] [--max_angle MAX_ANGLE]
+usage: RelPoseMeasEvaluationTool [-h] [--result_dir RESULT_DIR] [--bagfile BAGFILE] --cfg CFG [--save_plot] [--show_plot] [--verbose] [--extra_plots] [--keep_outliers] [--filter_histogram] [--max_range MAX_RANGE] [--max_angle MAX_ANGLE] [--interpolation_type {cubic,linear}] [--min_dt MIN_DT]
+                                 [--pose_error_type {type1,type2,type3,type4,type5,type6,none}]
 
 RelPoseMeasEvaluationTool: evaluation the measured relative poses
 
@@ -88,11 +95,24 @@ optional arguments:
   --keep_outliers       do not apply the max. thresholds on the error
   --filter_histogram    filters the error histogram, such that the fitted normal distribution is computed on the best bins only
   --max_range MAX_RANGE
-                        max. range that classifies them as outlier
+                        max. range that classifies them as outlier (0 disables feature).
   --max_angle MAX_ANGLE
-                        max. range that classifies them as outlier
-
+                        max. range that classifies them as outlier (0 disables feature)
+  --interpolation_type {cubic,linear}
+                        Trajectory interpolation type
+  --min_dt MIN_DT       temporal displacement of cubic spline control points
+  --pose_error_type {type1,type2,type3,type4,type5,type6,none}
+                        Covariance perturbation type (space) of relative pose measurements
 ```
+
+Other tools:
+
+- `RelPoseMeasEvaluation`,
+- `RelPose_ROSBag2CSV`,
+- `ROSBag_TrueRelPoses`,
+- `ROSBag_Poses2RelPoses`,
+- `ROSBag_ModifyRelPoses`,
+- `ROSBag_Pose2AbsPoses`
 
 ## License
 

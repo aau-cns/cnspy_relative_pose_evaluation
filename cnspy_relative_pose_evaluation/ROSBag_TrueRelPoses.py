@@ -31,9 +31,11 @@ import numpy as np
 from spatialmath import UnitQuaternion, SO3, SE3
 from spatialmath.base.quaternions import qslerp
 
+from cnspy_spatial_csv_formats.EstimationErrorType import EstimationErrorType
 from cnspy_trajectory.BsplineSE3 import BsplineSE3, TrajectoryInterpolationType
 from cnspy_trajectory.HistoryBuffer import get_key_from_value
 from cnspy_trajectory.ROSBag_Pose import ROSBag_Pose
+from cnspy_trajectory.SpatialConverter import SpatialConverter
 
 from mrs_msgs.msg import PoseWithCovarianceArrayStamped, PoseWithCovarianceIdentified
 
@@ -58,15 +60,14 @@ def interpolate_pose(pose_hist, timestamp, round_decimals=4) -> SE3:
         dt_i = timestamp - t1
         i = abs(dt_i / dt)
 
-        if dt < 10**-3:
+        if dt < 10 ** -3:
             return T_GLOBAL_BODY_T1
-        if i < 10**-2:
+        if i < 10 ** -2:
             return T_GLOBAL_BODY_T1
-        elif i > 1.0-10**-2:
+        elif i > 1.0 - 10 ** -2:
             return T_GLOBAL_BODY_T2
-        #if dt > 1.0:
+        # if dt > 1.0:
         #    print("WARNING: interpolate_pose(): dt="+str(dt) + " is huge!")
-
 
         # interpolate between poses:
         q0 = UnitQuaternion(T_GLOBAL_BODY_T1.R)
@@ -90,14 +91,14 @@ def interpolate_pose(pose_hist, timestamp, round_decimals=4) -> SE3:
 def random_orientation(stddev_rad):
     ax = np.random.randn(3, 1)
     ax = ax / np.linalg.norm(ax)
-    ang = np.random.randn(1, 1)[0]*stddev_rad
+    ang = np.random.randn(1, 1)[0] * stddev_rad
     return axang2quat(ax, ang[0])
 
 
 def axang2quat(u, phi):
     u = u / np.linalg.norm(u)
-    q_w = math.cos(phi*0.5)
-    q_v = u * math.sin(phi*0.5)
+    q_w = math.cos(phi * 0.5)
+    q_v = u * math.sin(phi * 0.5)
     return UnitQuaternion(s=q_w, v=np.array(q_v)).unit()
 
 
@@ -106,7 +107,7 @@ class ROSBag_TrueRelPoses:
         pass
 
     @staticmethod
-    def load_dict_cfg(cfg_fn, ignore_new_topic_name, verbose) ->  dict:
+    def load_dict_cfg(cfg_fn, ignore_new_topic_name, verbose) -> dict:
         with open(cfg_fn, "r") as yamlfile:
             dict_cfg = yaml.load(yamlfile, Loader=yaml.FullLoader)
             if "sensor_positions" not in dict_cfg:
@@ -137,6 +138,47 @@ class ROSBag_TrueRelPoses:
         return dict_cfg
 
     @staticmethod
+    def add_noise(p, R, stddev_pos:float, stddev_or:float, pose_error_type:EstimationErrorType):
+        if stddev_pos == 0 and stddev_or == 0:
+            return p, R
+
+        if stddev_pos > 0:
+            n_p = np.random.normal(0, stddev_pos, size=3)
+        else:
+            n_p = np.zeros(3)
+
+        if stddev_or > 0:
+            n_R = np.random.normal(0, stddev_or, size=3)
+        else:
+            n_R = np.zeros(3)
+
+        if pose_error_type == EstimationErrorType.type5:
+            if stddev_pos > 0:
+                p = p + n_p.T
+            if stddev_or > 0:
+                q_noise = random_orientation(stddev_rad=stddev_or)
+                R = np.matmul(R, q_noise.R)
+            return p, R
+
+        elif pose_error_type == EstimationErrorType.type1 or pose_error_type == EstimationErrorType.type2:
+            n_T = np.zeros(6)
+            n_T[0:3] = n_p
+            n_T[3:6] = n_R
+            T_n = SpatialConverter.theta_to_T(n_T)
+            T = np.identity(4)
+            T[0:3, 0:3] = R
+            T[:3, 3] = p
+            if pose_error_type == EstimationErrorType.type1:
+                T_AB = SE3(np.matmul(T, T_n), check=False)
+                return T_AB.t, T_AB.R
+            else:
+                T_AB = SE3(np.matmul(T_n, T), check=False)
+                return T_AB.t, T_AB.R
+        else:
+            assert False, "EstimationErrorType not supported!"
+            return p, R
+
+    @staticmethod
     def extract(bagfile_in_name,
                 bagfile_out_name,
                 cfg,
@@ -146,8 +188,9 @@ class ROSBag_TrueRelPoses:
                 verbose=False,
                 replace_with_new_topic=False,
                 ignore_new_topic_name=False,
-                interp_type = TrajectoryInterpolationType.cubic,
-                min_dt = 0.05
+                interp_type=TrajectoryInterpolationType.cubic,
+                min_dt=0.05,
+                pose_error_type: EstimationErrorType = EstimationErrorType.type5
                 ):
 
         if not os.path.isfile(bagfile_in_name):
@@ -210,7 +253,7 @@ class ROSBag_TrueRelPoses:
 
         round_decimals = 4
         dict_bsplines, dict_history = ROSBag_TrueRelPoses.load_dict_splines(bag, dict_cfg, interp_type, min_dt,
-                                                                              num_messages, round_decimals)
+                                                                            num_messages, round_decimals)
         if len(dict_bsplines) == 0:
             if verbose:
                 print("ROSBag_TrueRelPoses: No poses found!")
@@ -222,7 +265,8 @@ class ROSBag_TrueRelPoses:
             print("ROSBag_TrueRelPoses: computing new relative pose measurements...")
             with rosbag.Bag(bagfile_out_name, 'w') as outbag:
                 for topic, msg, t in tqdm(bag.read_messages(), total=num_messages, unit="msgs"):
-                    if topic in dict_cfg["relpose_topics"].values() and hasattr(msg, 'poses') and hasattr(msg, 'header'):
+                    if topic in dict_cfg["relpose_topics"].values() and hasattr(msg, 'poses') and hasattr(msg,
+                                                                                                          'header'):
                         ID1 = get_key_from_value(dict_cfg["relpose_topics"], topic)
                         idx_pose = 0
                         timestamp = msg.header.stamp.to_sec()
@@ -230,30 +274,30 @@ class ROSBag_TrueRelPoses:
                         msg_gt = PoseWithCovarianceArrayStamped()
                         msg_gt.header = msg.header
 
-                        for relpose in msg.poses: # id, pose, covariance
+                        for relpose in msg.poses:  # id, pose, covariance
                             ID2 = relpose.id
                             if ID2 in dict_cfg["true_pose_topics"].keys():
-                                #ID2 = get_key_from_value(dict_cfg["true_pose_topics"], topic2)
+                                # ID2 = get_key_from_value(dict_cfg["true_pose_topics"], topic2)
 
-                                T_GLOBAL_SENSOR1 = dict_bsplines[dict_cfg["true_pose_topics"][ID1]].get_pose(t=timestamp,
-                                                                                                             interp_type=interp_type,
-                                                                                                             round_decimals=round_decimals)
-                                T_GLOBAL_SENSOR2 = dict_bsplines[dict_cfg["true_pose_topics"][ID2]].get_pose(t=timestamp,
-                                                                                                            interp_type=interp_type,
-                                                                                                            round_decimals=round_decimals)
+                                T_GLOBAL_SENSOR1 = dict_bsplines[dict_cfg["true_pose_topics"][ID1]].get_pose(
+                                    t=timestamp,
+                                    interp_type=interp_type,
+                                    round_decimals=round_decimals)
+                                T_GLOBAL_SENSOR2 = dict_bsplines[dict_cfg["true_pose_topics"][ID2]].get_pose(
+                                    t=timestamp,
+                                    interp_type=interp_type,
+                                    round_decimals=round_decimals)
 
                                 if T_GLOBAL_SENSOR1 is not None and T_GLOBAL_SENSOR2 is not None:
                                     T_SENSOR1_SENSOR2 = T_GLOBAL_SENSOR1.inv() * T_GLOBAL_SENSOR2
-                                    p = T_SENSOR1_SENSOR2.t
-                                    q = UnitQuaternion(T_SENSOR1_SENSOR2.R, norm=True).unit()
-                                    if stddev_pos > 0:
-                                        p_noise = np.random.normal(0, stddev_pos, size=3)
-                                        p = p + p_noise.T
-                                    if stddev_or > 0:
-                                        q_noise = random_orientation(stddev_rad=stddev_or)
-                                        q = q*q_noise
-                                    else:
-                                        pass
+
+                                    t_, R_ = ROSBag_TrueRelPoses.add_noise(p=T_SENSOR1_SENSOR2.t,
+                                                                           R=T_SENSOR1_SENSOR2.R,
+                                                                           stddev_pos=stddev_pos,
+                                                                           stddev_or=stddev_or,
+                                                                           pose_error_type=pose_error_type)
+                                    p = t_
+                                    q = UnitQuaternion(R_, norm=True).unit()
                                     qv = q.vec
 
                                     pos_id = PoseWithCovarianceIdentified()
@@ -268,7 +312,7 @@ class ROSBag_TrueRelPoses:
 
                                     if stddev_pos > 0:
                                         # upper left block
-                                        var_pos = stddev_pos*stddev_pos
+                                        var_pos = stddev_pos * stddev_pos
                                         for idx in [0, 7, 14]:
                                             pos_id.covariance[idx] = var_pos
                                     if stddev_or > 0:
@@ -352,7 +396,7 @@ class ROSBag_TrueRelPoses:
         return found
 
     @staticmethod
-    def load_dict_splines(bag, dict_cfg, interp_type, min_dt=0.05, num_messages=None, round_decimals = 4):
+    def load_dict_splines(bag, dict_cfg, interp_type, min_dt=0.05, num_messages=None, round_decimals=4):
         if num_messages is None:
             info_dict = yaml.load(bag._get_yaml_info(), Loader=yaml.FullLoader)
             num_messages = info_dict['messages']
@@ -389,7 +433,6 @@ class ROSBag_TrueRelPoses:
         return dict_bsplines, dict_history
 
 
-
 def main():
     # example: ROSBag_Pose2Ranges.py --bagfile ../test/sample_data//uwb_calib_a01_2023-08-31-21-05-46.bag --topic /d01/mavros/vision_pose/pose --cfg ../test/sample_data/config.yaml --verbose
     parser = argparse.ArgumentParser(
@@ -415,23 +458,28 @@ def main():
                         help='overwrites the bag time with the header time stamp', default=False)
     parser.add_argument('--replace_with_new_topic', action='store_true',
                         help='removes relpose_topics if a new_relpose_topics was specified', default=False)
-    parser.add_argument('--interpolation_type', help='Trajectory interpolation type', choices=TrajectoryInterpolationType.list(),
+    parser.add_argument('--interpolation_type', help='Trajectory interpolation type',
+                        choices=TrajectoryInterpolationType.list(),
                         default=str(TrajectoryInterpolationType.linear))
     parser.add_argument('--min_dt',
                         help='temporal displacement of cubic spline control points',
                         default=0.05)
+    parser.add_argument('--pose_error_type', help='Covariance perturbation type (space) of relative pose measurements',
+                        choices=EstimationErrorType.list(),
+                        default=str(EstimationErrorType.type5))
     tp_start = time.time()
     args = parser.parse_args()
 
     if ROSBag_TrueRelPoses.extract(bagfile_in_name=args.bagfile_in,
-                                 bagfile_out_name=args.bagfile_out,
-                                 cfg=args.cfg,
-                                 verbose=args.verbose,
-                                 stddev_pos=float(args.std_pos),
-                                 stddev_or=float(args.std_or),
-                                 use_header_timestamp=args.use_header_timestamp,
-                                 interp_type=TrajectoryInterpolationType(args.interpolation_type),
-                                 min_dt=float(args.min_dt)):
+                                   bagfile_out_name=args.bagfile_out,
+                                   cfg=args.cfg,
+                                   verbose=args.verbose,
+                                   stddev_pos=float(args.std_pos),
+                                   stddev_or=float(args.std_or),
+                                   use_header_timestamp=args.use_header_timestamp,
+                                   interp_type=TrajectoryInterpolationType(args.interpolation_type),
+                                   min_dt=float(args.min_dt),
+                                   pose_error_type=EstimationErrorType(args.pose_error_type)):
         print(" ")
         print("finished after [%s sec]\n" % str(time.time() - tp_start))
     else:

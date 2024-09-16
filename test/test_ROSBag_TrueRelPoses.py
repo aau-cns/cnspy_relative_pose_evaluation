@@ -118,5 +118,40 @@ class ROSBag_TrueRelPoses_Test(unittest.TestCase):
         self.assertEqual(True, res)  # add as
         pass
 
+
+    def test_add_noise(self):
+        sequence = "static_test"
+        #sequence = 'two_spiral_2to3m'
+
+        bagfile_in = str(SAMPLE_DATA_DIR + '/' + sequence + '.bag')
+        cfg_fn = str(SAMPLE_DATA_DIR + '/config.yaml')
+        result_dir = RES_DATA_DIR + "/" + sequence + "/"
+
+        bagfile_out = str(result_dir +  '/noisy-ranges-type1.bag')
+        res = ROSBag_TrueRelPoses.extract(bagfile_in_name=bagfile_in,
+                                          bagfile_out_name=bagfile_out,
+                                          cfg=cfg_fn,
+                                          verbose=True,
+                                          use_header_timestamp=False,
+                                          ignore_new_topic_name=True,
+                                          stddev_pos=0.1,
+                                          stddev_or=0.1,
+                                          pose_error_type=EstimationErrorType.type1,
+                                          interp_type=TrajectoryInterpolationType.cubic,
+                                          min_dt=0.05)
+
+        bagfile_out = str(result_dir +  '/noisy-ranges-type5.bag')
+        res = ROSBag_TrueRelPoses.extract(bagfile_in_name=bagfile_in,
+                                          bagfile_out_name=bagfile_out,
+                                          cfg=cfg_fn,
+                                          verbose=True,
+                                          use_header_timestamp=False,
+                                          ignore_new_topic_name=True,
+                                          stddev_pos=0.1,
+                                          stddev_or=0.1,
+                                          pose_error_type=EstimationErrorType.type5,
+                                          interp_type=TrajectoryInterpolationType.cubic,
+                                          min_dt=0.05)
+
 if __name__ == '__main__':
     unittest.main()
