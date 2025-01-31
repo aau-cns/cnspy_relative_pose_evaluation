@@ -177,13 +177,16 @@ class RelPoseMeasEvaluation:
                                      }
                 pass
 
-            n = len(ID2_arr) - 1
-            sqrt_n = max(1, math.floor(math.sqrt(n)))
+            n = len(ID2_arr)
+            sqrt_n = max(1, math.ceil(math.sqrt(n)))
             n_rows = sqrt_n
             if sqrt_n * sqrt_n < n:
                 n_cols = sqrt_n + 1
             else:
                 n_cols = sqrt_n
+
+            if n_rows * n_cols <= n:
+                assert(False, "something went wrong!")
 
             idx = 1
             for ID2 in ID2_arr:

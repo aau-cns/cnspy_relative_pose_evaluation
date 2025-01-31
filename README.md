@@ -1,8 +1,11 @@
 # cnspy_relative_pose_evaluation
 
-A python3 package for evaluating relative pose measurements between two spatial frames in order to assess the accuracy.
+A python3 package for evaluating uncertain relative pose measurements between the spatial frame of sensors to other sensors or static objects in order to assess the accuracy.
 The baseline (ground truth) relative pose can be computed from two recorded 3D trajectories of the moving bodies and known extrinsics to the sensors.
 These can be specified in a single configuration file, see [config.yaml](./test/sample_data/config.yaml)
+
+The relative measurements can be either provided as CSV files or in ROS1 bagfile in [PoseWithCovarianceArrayStamped](https://ctu-mrs.github.io/mrs_msgs/msg/PoseWithCovarianceArrayStamped.html) msgs.
+The true relative pose measurements can be either provided as CSV files or can be computed from measured true pose of the BODY reference frame and a provided pose in a ROS1 bagfile (`geometry_msgs/PoseStamped`, `geometry_msgs/TransformStamped`) between the BODY reference and the SENSOR reference frame (specified in the configuration file) . 
 
 
 The following evaluations can be conducted:
@@ -33,6 +36,12 @@ pip3 install -e .
 ``
 which installs the package in-place, allowing you make changes to the code without having to reinstall every time.
 
+**Note that the ROS1 message definitions from the [mrs_uav_system](https://github.com/ctu-mrs/mrs_uav_system?tab=readme-ov-file#native-installation) need to be installed:**
+```commandline
+curl https://ctu-mrs.github.io/ppa-stable/add_ppa.sh | bash
+sudo apt install ros-noetic-mrs-msgs
+```
+
 **This package is still in development. Once stable it should be sufficient to run:**
 ```commandline
 pip3 install cnspy_relative_pose_evaluation
@@ -52,12 +61,18 @@ YAML configuration file is in the form of:
 # relative pose of the moving sensors with respect to the body frame (pose from BODY to SENSOR)
 sensor_positions: {0:[0, 0, 0], 1:[0, 0, 0], 2:[0, 0, 0]}
 sensor_orientations: {0:[1.0, 0, 0, 0], 1:[1.0, 0, 0, 0], 2:[1.0, 0, 0, 0]}
-# true pose of the body
+# static pose of stationary objects with respect to the GLOBAL frame
+object_positions: {10:[1, 0, 0], 11:[2, 0, 0], 12:[3, 0, 0]}
+object_orientations: {10:[1.0, 0, 0, 0], 11:[1.0, 0, 0, 0], 12:[1.0, 0, 0, 0]}
+# true pose of the BODY (geometry_msgs/PoseStamped, geometry_msgs/TransformStamped) with respect to the GLOBAL frame
 true_pose_topics: {0: "/uav10/vrpn_client/raw_pose", 1: "/uav11/vrpn_client/raw_pose", 2: "/uav12/vrpn_client/raw_pose"}
-# topics of the relative pose measurement
+# topics of the relative pose measurement (mrs_msgs/PoseWithCovarianceArrayStamped)
 relpose_topics: {0: "/uav10/data_handler/uvdar_fcu", 1: "/uav11/data_handler/uvdar_fcu", 2: "/uav12/data_handler/uvdar_fcu"}
-
+# topics of the synthetic relative pose measurement (mrs_msgs/PoseWithCovarianceArrayStamped) to be stored in a "clean" rosbag file
+new_relpose_topics: {0: "/uav10/data_handler/uvdar_fcu_syn", 1: "/uav11/data_handler/uvdar_fcu_syn", 2: "/uav12/data_handler/uvdar_fcu_syn"}
 ```
+Note that the IDs need to be unique and match with the IDs in the messages of the `relpose_topics`. 
+The `RelPoseMeasEvaluationTool` checks if the specified topics are contained in the provided bagfile and if the IDs in the cfg file are unique.
 
 ## Important notes for the NEES computation
 
@@ -72,7 +87,7 @@ type2:
 type5:
 [<img src="/doc/img/e-type5.png" width="250"/>](./doc/img/e-type5.png)
 
-Please check out: [ErrorRepresentationType](https://github.com/aau-cns/cnspy_spatial_csv_formats/blob/main/cnspy_spatial_csv_formats/ErrorRepresentationType.py) and [EstimationErrorType](https://github.com/aau-cns/cnspy_spatial_csv_formats/blob/main/cnspy_spatial_csv_formats/EstimationErrorType.py)
+For more details, please read: [ErrorRepresentationType](https://github.com/aau-cns/cnspy_spatial_csv_formats/blob/main/cnspy_spatial_csv_formats/ErrorRepresentationType.py) and [EstimationErrorType](https://github.com/aau-cns/cnspy_spatial_csv_formats/blob/main/cnspy_spatial_csv_formats/EstimationErrorType.py)
 
 ## Usage
 

@@ -11,10 +11,10 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='cnspy_relative_pose_evaluation',
-    version="0.1.14",
+    version="0.1.15",
     author='Roland Jung',
     author_email='roland.jung@aau.at',
-    description='Evaluation of relative pose measurements.',
+    description='Evaluation of uncertain relative pose measurements.',
     long_description=long_description,
     long_description_content_type="text/markdown",
     url='https://github.com/aau-cns/cnspy_relative_pose_evaluation/',

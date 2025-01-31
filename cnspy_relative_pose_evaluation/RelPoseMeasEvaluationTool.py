@@ -93,19 +93,26 @@ class RelPoseMeasEvaluationTool:
             print("Successfully read YAML config file.")
 
         Sensor_ID_arr = []
+        Object_ID_arr = []
         topic_list = []
         for key, val in dict_cfg["true_pose_topics"].items():
             topic_list.append(val)
         for key, val in dict_cfg["relpose_topics"].items():
             topic_list.append(val)
             Sensor_ID_arr.append(int(key))
-
-        if verbose:
-            print("* topic_list= " + str(topic_list))
-            print("* Sensor_ID_arr= " + str(Sensor_ID_arr))
+        if "object_positions" not in dict_cfg:
+            for key, val in dict_cfg["object_positions"].items():
+                Object_ID_arr.append(int(key))
 
         if ID_arr:
             Sensor_ID_arr = ID_arr
+
+        # unique IDs
+        Sensor_ID_arr = list(set(Sensor_ID_arr))
+        Object_ID_arr = list(set(Object_ID_arr))
+        if verbose:
+            print("* topic_list= " + str(topic_list))
+            print("* Sensor_ID_arr= " + str(Sensor_ID_arr))
 
         # topic_list=['/d01/ranging', '/a01/ranging', '/a02/ranging', '/a03/ranging']
         fn_meas_ranges = str(result_dir + '/all-meas-ranges.csv')
@@ -122,7 +129,6 @@ class RelPoseMeasEvaluationTool:
                                                     with_cov=True)
 
         bagfile_out = str(result_dir + '/true-ranges.bag')
-
 
         # 2) create a clean bag file
         if not os.path.isfile(bagfile_out):
@@ -178,7 +184,7 @@ class RelPoseMeasEvaluationTool:
         eval = RelPoseMeasEvaluation(fn_gt=fn_gt_ranges,
                                      fn_est=fn_meas_ranges,
                                      ID1_arr=Sensor_ID_arr,
-                                     ID2_arr=Sensor_ID_arr,
+                                     ID2_arr=list(set(list(Sensor_ID_arr + Object_ID_arr))),
                                      cfg=cfg,
                                      result_dir=str(result_dir + '/eval/'),
                                      prefix='',

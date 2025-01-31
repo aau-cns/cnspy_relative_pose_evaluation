@@ -112,24 +112,45 @@ class ROSBag_TrueRelPoses:
             dict_cfg = yaml.load(yamlfile, Loader=yaml.FullLoader)
             if "sensor_positions" not in dict_cfg:
                 print("[sensor_positions] does not exist in fn=" + cfg_fn)
-                return False
+                return None
             if "sensor_orientations" not in dict_cfg:
                 print("[sensor_orientations] does not exist in fn=" + cfg_fn)
+            if "object_positions" not in dict_cfg:
+                print("[object_positions] does not exist in fn=" + cfg_fn)
+                # check if object_positions ids are different from sensor_positions
+                for key, val in dict_cfg["object_postions"].items():
+                    if key in dict_cfg["sensor_positions"].keys():
+                        print("[object_positions] id " + str(key) + " is not unique!")
+                        return None
+            if "object_orientations" not in dict_cfg:
+                print("[object_orientations] does not exist in fn=" + cfg_fn)
+                for key, val in dict_cfg["object_orientations"].items():
+                    if key in dict_cfg["sensor_positions"].keys():
+                        print("[object_orientations] id " + str(key) + " is not unique!")
+                        return None
             if "true_pose_topics" not in dict_cfg:
                 print("[true_pose_topics] does not exist in fn=" + cfg_fn)
-                return False
+                return None
             if "relpose_topics" not in dict_cfg:
                 print("[relpose_topics] does not exist in fn=" + cfg_fn)
-                return False
+                return None
             if "new_relpose_topics" not in dict_cfg:
                 print("[new_relpose_topics] does not exist in fn=" + cfg_fn)
             elif ignore_new_topic_name:
                 print("[new_relpose_topics] WILL BE IGNORED, but was specified in fn=" + cfg_fn)
+
+            for key, val in dict_cfg["true_pose_topics"].items():
+                if key not in dict_cfg["relpose_topics"].keys() or key not in dict_cfg["sensor_positions"].keys():
+                    print("[true_pose_topics] id " + str(key) + " is not present in relpose_topics or sensor_positions!")
+                    return None
+
             print("Configuration read successfully")
         if verbose:
             print("configuration contains:")
             print("sensor_positions:" + str(dict_cfg["sensor_positions"]))
             print("sensor_orientations:" + str(dict_cfg["sensor_orientations"]))
+            print("object_positions:" + str(dict_cfg["object_positions"]))
+            print("object_orientations:" + str(dict_cfg["object_orientations"]))
             print("true_pose_topics:" + str(dict_cfg["true_pose_topics"]))
             print("relpose_topics:" + str(dict_cfg["relpose_topics"]))
             if "new_relpose_topics" in dict_cfg and not ignore_new_topic_name:
@@ -234,6 +255,9 @@ class ROSBag_TrueRelPoses:
         dict_cfg = ROSBag_TrueRelPoses.load_dict_cfg(cfg_fn=cfg,
                                                      ignore_new_topic_name=ignore_new_topic_name,
                                                      verbose=verbose)
+        if dict_cfg is None:
+            print(" ERROR configuration is wrong!")
+            return False
 
         info_dict = yaml.load(bag._get_yaml_info(), Loader=yaml.FullLoader)
 
@@ -251,9 +275,12 @@ class ROSBag_TrueRelPoses:
         if verbose and not found:
             print("ROSBag_TrueRelPoses: desired topics not found!")
 
+        dict_static_objects = ROSBag_TrueRelPoses.load_dict_static_objects(dict_cfg)
         round_decimals = 4
         dict_bsplines, dict_history = ROSBag_TrueRelPoses.load_dict_splines(bag, dict_cfg, interp_type, min_dt,
                                                                             num_messages, round_decimals)
+
+
         if len(dict_bsplines) == 0:
             if verbose:
                 print("ROSBag_TrueRelPoses: No poses found!")
@@ -276,17 +303,24 @@ class ROSBag_TrueRelPoses:
 
                         for relpose in msg.poses:  # id, pose, covariance
                             ID2 = relpose.id
-                            if ID2 in dict_cfg["true_pose_topics"].keys():
+
+                            is_sensor = (ID2 in dict_cfg["true_pose_topics"].keys())
+                            is_object = (ID2 in dict_cfg["object_positions"].keys())
+                            if is_sensor or is_object:
                                 # ID2 = get_key_from_value(dict_cfg["true_pose_topics"], topic2)
 
                                 T_GLOBAL_SENSOR1 = dict_bsplines[dict_cfg["true_pose_topics"][ID1]].get_pose(
                                     t=timestamp,
                                     interp_type=interp_type,
                                     round_decimals=round_decimals)
-                                T_GLOBAL_SENSOR2 = dict_bsplines[dict_cfg["true_pose_topics"][ID2]].get_pose(
-                                    t=timestamp,
-                                    interp_type=interp_type,
-                                    round_decimals=round_decimals)
+
+                                if is_sensor:
+                                    T_GLOBAL_SENSOR2 = dict_bsplines[dict_cfg["true_pose_topics"][ID2]].get_pose(
+                                        t=timestamp,
+                                        interp_type=interp_type,
+                                        round_decimals=round_decimals)
+                                else:
+                                    T_GLOBAL_SENSOR2 = dict_static_objects[ID2]
 
                                 if T_GLOBAL_SENSOR1 is not None and T_GLOBAL_SENSOR2 is not None:
                                     T_SENSOR1_SENSOR2 = T_GLOBAL_SENSOR1.inv() * T_GLOBAL_SENSOR2
@@ -375,7 +409,7 @@ class ROSBag_TrueRelPoses:
     def check_topics(bag_topics, dict_cfg, num_messages, verbose) -> bool:
         # check if desired topics are in
         found = True
-        for id, topicName in dict_cfg["true_pose_topics"].items():
+        for ID, topicName in dict_cfg["true_pose_topics"].items():
             found_ = False
             for topic_info in bag_topics:
                 if topic_info['topic'] == topicName:
@@ -383,7 +417,7 @@ class ROSBag_TrueRelPoses:
             if not found_:
                 print("# WARNING: desired topic [" + str(topicName) + "] is not in bag file!")
                 found = False
-        for id, topicName in dict_cfg["relpose_topics"].items():
+        for ID, topicName in dict_cfg["relpose_topics"].items():
             found_ = False
             for topic_info in bag_topics:
                 if topic_info['topic'] == topicName:
@@ -394,6 +428,21 @@ class ROSBag_TrueRelPoses:
         if verbose:
             print("\nROSBag_TrueRelPoses: num messages " + str(num_messages))
         return found
+
+    @staticmethod
+    def load_dict_static_objects(dict_cfg):
+        dict_T_GLOBAL_OBJECT = dict()  # map<topic, SE3>
+        for ID, sensor_pos in dict_cfg["object_positions"].items():
+            t_BT = np.array(sensor_pos)
+            q_BT = UnitQuaternion()
+            if ID in dict_cfg["object_orientations"].keys():
+                # expecting: w,x,y,z
+                q_vec = np.array(dict_cfg["object_orientations"][ID])
+                q_BT = UnitQuaternion(q_vec).unit()
+                pass
+            dict_T_GLOBAL_OBJECT[ID] = SE3.Rt(q_BT.R, t_BT, check=True)
+
+        return dict_T_GLOBAL_OBJECT
 
     @staticmethod
     def load_dict_splines(bag, dict_cfg, interp_type, min_dt=0.05, num_messages=None, round_decimals=4):
