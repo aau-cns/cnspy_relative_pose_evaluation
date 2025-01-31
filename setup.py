@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='cnspy_relative_pose_evaluation',
-    version="0.1.15",
+    version="0.1.16",
     author='Roland Jung',
     author_email='roland.jung@aau.at',
     description='Evaluation of uncertain relative pose measurements.',

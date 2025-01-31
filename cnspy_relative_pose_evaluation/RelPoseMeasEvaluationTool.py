@@ -100,7 +100,7 @@ class RelPoseMeasEvaluationTool:
         for key, val in dict_cfg["relpose_topics"].items():
             topic_list.append(val)
             Sensor_ID_arr.append(int(key))
-        if "object_positions" not in dict_cfg:
+        if "object_positions" in dict_cfg:
             for key, val in dict_cfg["object_positions"].items():
                 Object_ID_arr.append(int(key))
 
@@ -113,6 +113,7 @@ class RelPoseMeasEvaluationTool:
         if verbose:
             print("* topic_list= " + str(topic_list))
             print("* Sensor_ID_arr= " + str(Sensor_ID_arr))
+            print("* Object_ID_arr= " + str(Sensor_ID_arr))
 
         # topic_list=['/d01/ranging', '/a01/ranging', '/a02/ranging', '/a03/ranging']
         fn_meas_ranges = str(result_dir + '/all-meas-ranges.csv')
