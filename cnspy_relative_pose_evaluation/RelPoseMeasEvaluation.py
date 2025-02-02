@@ -59,6 +59,7 @@ class RelPoseMeasEvaluation:
                  plot_angle_error=True,
                  plot_range_histogram=True,
                  plot_angle_histogram=True,
+                 plot_angle_histogram_unbiased=True,
                  plot_pose_err=True,
                  plot_position_err=True,
                  plot_pose=True,
@@ -163,6 +164,9 @@ class RelPoseMeasEvaluation:
             if plot_angle_histogram:
                 fig_ha = plt.figure(figsize=(20, 15), dpi=int(200))
                 fig_ha.suptitle('Angle Error Histograms of ID=' + str(ID1), fontsize=16)
+            if plot_angle_histogram_unbiased:
+                fig_hau = plt.figure(figsize=(20, 15), dpi=int(200))
+                fig_hau.suptitle('Unbiased Angle Error Histograms of ID=' + str(ID1), fontsize=16)
             if save_statistics:
                 dict_statistics_i = {'ID': ID1,
                                      'range_constant_bias_table': dict(),
@@ -292,10 +296,20 @@ class RelPoseMeasEvaluation:
                                                                                      ax=ax_ha,
                                                                                      max_error=10,
                                                                                      filter_histogramm=filter_histogram,
+                                                                                     biased_error=True,
                                                                                      ID1=ID1, ID2=ID2)
                     if stat is not None  and save_statistics:
                         dict_statistics_i['angle_constant_bias_table'][ID2] = round(float(stat['mean']), 2)
                         dict_statistics_i['angle_noise_table'][ID2] = round(float(stat['std']), 2)
+
+                if plot_angle_histogram_unbiased:
+                    ax_hau = fig_hau.add_subplot(n_rows, n_cols, idx)
+                    [fig_, ax_, stat, r_vec_err_] = assoc.plot_angle_error_histogram(fig=fig_ha,
+                                                                                     ax=ax_hau,
+                                                                                     max_error=10,
+                                                                                     filter_histogramm=filter_histogram,
+                                                                                     biased_error=False,
+                                                                                     ID1=ID1, ID2=ID2)
                 # the histogram of the date
                 idx += 1
 

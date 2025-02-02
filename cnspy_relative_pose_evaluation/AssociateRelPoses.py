@@ -550,7 +550,7 @@ class AssociateRelPoses(AssociateRanges):
         return fig, ax, stat, r_vec_err
 
     def plot_angle_error_histogram(self, cfg_dpi=200, fig=None, ax=None,
-                                   save_fn="", result_dir=".", max_error=None, filter_histogramm=False,
+                                   save_fn="", result_dir=".", max_error=None, filter_histogramm=False, biased_error=False,
                                    perc_inliers=0.3,
                                    ID1=None, ID2=None):
         if not self.data_loaded:
@@ -570,9 +570,12 @@ class AssociateRelPoses(AssociateRanges):
 
         if not filter_histogramm:
             # add a 'best fit' line
-            # NOTE: angle error is always positive, therefore, we create negative side, and mean is 0:
-            stat = numpy_statistics(
-                vNumpy=np.squeeze(np.concatenate((np.asarray(r_vec_err), np.asarray(-1.0 * r_vec_err)))))
+            if not biased_error:
+                # NOTE: angle error is always positive, therefore, we create negative side, and mean is 0:
+                stat = numpy_statistics(vNumpy=np.squeeze(np.concatenate((np.asarray(r_vec_err), np.asarray(-1.0 * r_vec_err)))))
+            else:
+                stat = numpy_statistics(vNumpy=np.squeeze(np.asarray(r_vec_err)))
+
             # stat = numpy_statistics( vNumpy=np.squeeze(np.asarray(abs(r_vec_err))))
             sigma = max(0.001, stat['std'])  # avoid division by 0
             mu = stat['mean']
@@ -608,16 +611,18 @@ class AssociateRelPoses(AssociateRanges):
                                        (r_vec_err < (mean_best_errors + 2.0 * max_offset_errors))]
 
             # add a 'best fit' line
-            # NOTE: angle error is always positive, therefore, we create negative side, and mean is 0:
-            stat = numpy_statistics(
-                vNumpy=np.squeeze(np.concatenate((np.asarray(r_filtered_err), np.asarray(-1.0 * r_filtered_err)))))
-            # stat = numpy_statistics(vNumpy=np.squeeze(np.asarray(abs(r_filtered_err))))
+            if not biased_error:
+                # NOTE: angle error is always positive, therefore, we create negative side, and mean is 0:
+                stat = numpy_statistics(vNumpy=np.squeeze(np.concatenate((np.asarray(r_filtered_err), np.asarray(-1.0 * r_filtered_err)))))
+            else:
+                stat = numpy_statistics(vNumpy=np.squeeze(np.asarray(abs(r_filtered_err))))
+
             num_plot_bins = int(num_bins * (perc_inliers))
             n_, bins_, patches_ = ax.hist(r_filtered_err, num_plot_bins, density=True, color='blue', alpha=0.75,
                                           label='Histogram (filtered)')
             sigma = max(0.001, stat['std'])  # avoid division by 0
             mu = stat['mean']
-            scaling = 1.0;  # len(r_filtered_err)/num_plot_bins
+            scaling = 1.0  # len(r_filtered_err)/num_plot_bins
             y = ((1 / (np.sqrt(2 * np.pi) * sigma)) *
                  np.exp(-0.5 * (1 / sigma * (bins_ - mu)) ** 2))
             ax.plot(bins_, y * scaling, '--', color='green', label='PDF (filtered)')

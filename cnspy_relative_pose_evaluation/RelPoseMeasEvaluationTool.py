@@ -200,6 +200,7 @@ class RelPoseMeasEvaluationTool:
                                      plot_angle_error=extra_plots,
                                      plot_range_histogram=True,
                                      plot_angle_histogram=True,
+                                     plot_angle_histogram_unbiased=True,
                                      filter_histogram=filter_histogram,
                                      plot_position_err=True,
                                      plot_pose_err=True,
