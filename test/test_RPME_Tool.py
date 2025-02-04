@@ -46,7 +46,7 @@ class RelPoseMeasEvaluation_Test(unittest.TestCase):
                                            ID_arr=[0],
                                            interp_type=TrajectoryInterpolationType.linear,
                                            min_dt=float(0.01),
-                                           pose_error_type=EstimationErrorType.type1
+                                           pose_error_type=EstimationErrorType.type5
                                            )
 
 

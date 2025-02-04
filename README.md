@@ -46,13 +46,16 @@ sudo apt install ros-noetic-mrs-msgs
 ```commandline
 pip3 install cnspy_relative_pose_evaluation
 ```
-## Run from terminal
+## Run different tools from the terminal
 
 * RelPoseMeasEvaluationTool 
 * RelPoseMeasEvaluation
 * RelPose_ROSBag2CSV
 * ROSBag_TrueRelPoses
 * ROSBag_Poses2RelPose
+* ROSBag_ModifyRelPoses
+* ROSBag_Pose2AbsPoses
+* ROSBag_MeasObjPoses
 
 ## YAML configuration file
 
@@ -70,6 +73,9 @@ true_pose_topics: {0: "/uav10/vrpn_client/raw_pose", 1: "/uav11/vrpn_client/raw_
 relpose_topics: {0: "/uav10/data_handler/uvdar_fcu", 1: "/uav11/data_handler/uvdar_fcu", 2: "/uav12/data_handler/uvdar_fcu"}
 # topics of the synthetic relative pose measurement (mrs_msgs/PoseWithCovarianceArrayStamped) to be stored in a "clean" rosbag file
 new_relpose_topics: {0: "/uav10/data_handler/uvdar_fcu_syn", 1: "/uav11/data_handler/uvdar_fcu_syn", 2: "/uav12/data_handler/uvdar_fcu_syn"}
+# for ROSBag_MeasObjPoses: specified topic names for measured object poses with respect to the GLOBAL frame.
+meas_object_pose_topics: {10: "/object1", 11: "/object2", 12: "/object3"}
+
 ```
 Note that the IDs need to be unique and match with the IDs in the messages of the `relpose_topics`. 
 The `RelPoseMeasEvaluationTool` checks if the specified topics are contained in the provided bagfile and if the IDs in the cfg file are unique.

@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='cnspy_relative_pose_evaluation',
-    version="0.1.17",
+    version="0.1.18",
     author='Roland Jung',
     author_email='roland.jung@aau.at',
     description='Evaluation of uncertain relative pose measurements.',
@@ -53,6 +53,7 @@ setup(
             'ROSBag_Poses2RelPoses = cnspy_relative_pose_evaluation.ROSBag_Poses2RelPoses:main',
             'ROSBag_ModifyRelPoses = cnspy_relative_pose_evaluation.ROSBag_ModifyRelPoses:main',
             'ROSBag_Pose2AbsPoses = cnspy_relative_pose_evaluation.ROSBag_Pose2AbsPoses:main',
+            'ROSBag_MeasObjPoses = cnspy_relative_pose_evaluation.ROSBag_MeasObjPoses:main',
         ],
     },
 )
